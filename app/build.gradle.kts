@@ -71,11 +71,11 @@ dependencies {
     
     // ViewModel
     implementation(libs.lifecycle.viewmodel.compose)
-    
 
-    
-    // YouTube extraction
-    implementation(libs.youtubedl.android)
+    // Youtube Wrapper
+    implementation(libs.library)
+    implementation(libs.ffmpeg)
+    implementation(libs.aria2c)
     
     // File operations
     implementation(libs.androidx.documentfile)
