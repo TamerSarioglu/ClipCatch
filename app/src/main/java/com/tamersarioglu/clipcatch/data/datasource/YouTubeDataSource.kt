@@ -1,6 +1,8 @@
 package com.tamersarioglu.clipcatch.data.datasource
 
 import com.tamersarioglu.clipcatch.data.dto.VideoInfoDto
+import com.tamersarioglu.clipcatch.data.service.YouTubeExtractorService
+import com.tamersarioglu.clipcatch.data.service.YouTubeExtractionException
 import com.tamersarioglu.clipcatch.domain.model.DownloadError
 import java.io.IOException
 import java.net.SocketTimeoutException
@@ -30,79 +32,38 @@ interface YouTubeDataSource {
 }
 
 /**
- * Implementation of YouTubeDataSource
- * This is a placeholder implementation that will be replaced with actual YouTube extraction logic
+ * Implementation of YouTubeDataSource using YouTubeExtractorService
  */
 @Singleton
-class YouTubeDataSourceImpl @Inject constructor() : YouTubeDataSource {
+class YouTubeDataSourceImpl @Inject constructor(
+    private val youTubeExtractorService: YouTubeExtractorService
+) : YouTubeDataSource {
     
-    companion object {
-        // YouTube URL patterns for validation
-        private val YOUTUBE_URL_PATTERNS = listOf(
-            Regex("^https?://(www\\.)?youtube\\.com/watch\\?v=([a-zA-Z0-9_-]+).*$"),
-            Regex("^https?://(www\\.)?youtu\\.be/([a-zA-Z0-9_-]+).*$"),
-            Regex("^https?://(www\\.)?youtube\\.com/shorts/([a-zA-Z0-9_-]+).*$"),
-            Regex("^https?://(m\\.)?youtube\\.com/watch\\?v=([a-zA-Z0-9_-]+).*$")
-        )
-    }
+
     
     override suspend fun getVideoInfo(url: String): VideoInfoDto {
         try {
-            if (!validateYouTubeUrl(url)) {
-                throw YouTubeDataException(DownloadError.INVALID_URL, "Invalid YouTube URL: $url")
-            }
+            return youTubeExtractorService.extractVideoInfo(url)
             
-            // Extract video ID from URL
-            val videoId = extractVideoId(url)
-                ?: throw YouTubeDataException(DownloadError.INVALID_URL, "Could not extract video ID from URL: $url")
-            
-            // TODO: Replace with actual YouTube extraction service
-            // For now, return mock data for testing purposes
-            return VideoInfoDto(
-                id = videoId,
-                title = "Sample Video Title",
-                downloadUrl = "https://example.com/video.mp4",
-                thumbnailUrl = "https://example.com/thumbnail.jpg",
-                duration = 300L,
-                fileSize = 1024L * 1024L, // 1MB
-                format = "mp4"
-            )
-            
-        } catch (e: YouTubeDataException) {
-            throw e
+        } catch (e: YouTubeExtractionException) {
+            throw YouTubeDataException(e.error, e.message ?: "YouTube extraction failed", e)
         } catch (e: UnknownHostException) {
-            throw YouTubeDataException(DownloadError.NETWORK_ERROR, "No internet connection available")
+            throw YouTubeDataException(DownloadError.NETWORK_ERROR, "No internet connection available", e)
         } catch (e: SocketTimeoutException) {
-            throw YouTubeDataException(DownloadError.NETWORK_ERROR, "Connection timeout")
+            throw YouTubeDataException(DownloadError.NETWORK_ERROR, "Connection timeout", e)
         } catch (e: IOException) {
-            throw YouTubeDataException(DownloadError.NETWORK_ERROR, "Network error: ${e.message}")
+            throw YouTubeDataException(DownloadError.NETWORK_ERROR, "Network error: ${e.message}", e)
         } catch (e: SecurityException) {
-            throw YouTubeDataException(DownloadError.PERMISSION_DENIED, "Permission denied: ${e.message}")
+            throw YouTubeDataException(DownloadError.PERMISSION_DENIED, "Permission denied: ${e.message}", e)
         } catch (e: Exception) {
-            throw YouTubeDataException(DownloadError.UNKNOWN_ERROR, "Failed to extract video information: ${e.message}")
+            throw YouTubeDataException(DownloadError.UNKNOWN_ERROR, "Failed to extract video information: ${e.message}", e)
         }
     }
     
     override fun validateYouTubeUrl(url: String): Boolean {
-        if (url.isBlank()) return false
-        
-        return YOUTUBE_URL_PATTERNS.any { pattern ->
-            pattern.matches(url)
-        }
+        return youTubeExtractorService.isValidYouTubeUrl(url)
     }
-    
-    /**
-     * Extracts video ID from YouTube URL
-     */
-    private fun extractVideoId(url: String): String? {
-        YOUTUBE_URL_PATTERNS.forEach { pattern ->
-            val matchResult = pattern.find(url)
-            if (matchResult != null && matchResult.groupValues.size > 2) {
-                return matchResult.groupValues[2]
-            }
-        }
-        return null
-    }
+
 }
 
 /**
