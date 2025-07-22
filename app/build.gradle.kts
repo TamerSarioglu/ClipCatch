@@ -68,6 +68,7 @@ dependencies {
     
     // Networking
     implementation(libs.okhttp)
+    implementation(libs.okhttp.logging)
     implementation(libs.retrofit)
     
     // Coroutines

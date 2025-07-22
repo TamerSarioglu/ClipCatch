@@ -4,6 +4,8 @@
 
     <!-- Internet permission for downloading videos -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Network state permission for checking connectivity -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     
     <!-- Storage permissions -->
     <!-- For Android 9 (API 28) and below -->
