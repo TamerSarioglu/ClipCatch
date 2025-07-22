@@ -5,8 +5,8 @@ import java.io.OutputStream
 
 /**
  * Service interface for file system operations
- * Note: This is a minimal implementation to support the DownloadManagerService.
- * A more complete implementation will be done in task 4.3.
+ * Handles file creation, storage space validation, and file management
+ * with support for both legacy storage and Android 10+ scoped storage
  */
 interface FileManagerService {
     
@@ -16,7 +16,7 @@ interface FileManagerService {
      * @param fileName The name of the file to create
      * @param customPath Optional custom path (null for default Downloads folder)
      * @return The created File object
-     * @throws IOException if file creation fails
+     * @throws IOException if file creation fails or if there's insufficient storage
      * @throws SecurityException if permission is denied
      */
     suspend fun createDownloadFile(fileName: String, customPath: String? = null): File
@@ -51,4 +51,43 @@ interface FileManagerService {
      * @param stream The stream to close
      */
     fun closeOutputStream(stream: OutputStream?)
+    
+    /**
+     * Finalizes a file in MediaStore after writing is complete (Android 10+)
+     * This makes the file visible to other apps
+     * 
+     * @param file The file to finalize
+     */
+    fun finalizeMediaStoreFile(file: File)
+    
+    /**
+     * Deletes a file, handling both direct file access and MediaStore
+     * 
+     * @param file The file to delete
+     * @return true if deletion was successful, false otherwise
+     */
+    fun deleteFile(file: File): Boolean
+    
+    /**
+     * Gets total storage space in bytes
+     * 
+     * @return Total storage space in bytes
+     */
+    fun getTotalStorageSpace(): Long
+    
+    /**
+     * Gets available storage space in bytes
+     * 
+     * @return Available storage space in bytes
+     */
+    fun getAvailableStorageSpace(): Long
+    
+    /**
+     * Creates a descriptive file name based on video title and current date
+     * 
+     * @param videoTitle The title of the video
+     * @param format The file format/extension (e.g., "mp4")
+     * @return A descriptive file name with format
+     */
+    fun createDescriptiveFileName(videoTitle: String, format: String): String
 }

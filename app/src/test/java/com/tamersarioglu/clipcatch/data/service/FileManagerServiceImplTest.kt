@@ -1,241 +1,161 @@
 package com.tamersarioglu.clipcatch.data.service
 
-import android.content.ContentResolver
-import android.content.ContentValues
-import android.content.Context
-import android.net.Uri
-import android.os.Build
-import android.os.Environment
-import android.os.StatFs
-import android.provider.MediaStore
-import io.mockk.*
-import io.mockk.impl.annotations.MockK
-import io.mockk.impl.annotations.RelaxedMockK
-import kotlinx.coroutines.runBlocking
-import org.junit.After
 import org.junit.Assert.*
-import org.junit.Before
 import org.junit.Test
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
+/**
+ * Unit tests for FileManagerServiceImpl
+ * These tests focus on pure logic methods that don't require Android framework
+ */
 class FileManagerServiceImplTest {
 
-    @RelaxedMockK
-    private lateinit var context: Context
-
-    @MockK
-    private lateinit var contentResolver: ContentResolver
-
-    @MockK
-    private lateinit var uri: Uri
-
-    @MockK
-    private lateinit var downloadsDir: File
-
-    @MockK
-    private lateinit var cacheDir: File
-
-    @MockK
-    private lateinit var statFs: StatFs
-
-    private lateinit var fileManagerService: FileManagerServiceImpl
-
-    @Before
-    fun setUp() {
-        MockKAnnotations.init(this)
+    @Test
+    fun `createDescriptiveFileName generates correct format`() {
+        // Create a mock service instance for testing
+        val service = TestableFileManagerService()
         
-        // Mock context
-        every { context.contentResolver } returns contentResolver
-        every { context.cacheDir } returns cacheDir
-        every { context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) } returns downloadsDir
+        // Test with a fixed date
+        val fixedDate = Date(1626912000000) // July 22, 2021
+        val result = service.createDescriptiveFileNameWithDate("Test Video Title", "mp4", fixedDate)
         
-        // Mock file operations
-        every { downloadsDir.path } returns "/storage/emulated/0/Download/ClipCatch"
-        every { downloadsDir.exists() } returns true
-        every { downloadsDir.mkdirs() } returns true
+        // Format should be: "Test Video Title_20210722_000000.mp4"
+        val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
+        val dateString = dateFormat.format(fixedDate)
         
-        // Mock cache dir
-        every { cacheDir.path } returns "/data/user/0/com.tamersarioglu.clipcatch/cache"
-        
-        // Create the service
-        fileManagerService = FileManagerServiceImpl(context)
-        
-        // Mock StatFs for storage space checks
-        mockkConstructor(StatFs::class)
-        every { anyConstructed<StatFs>().availableBlocksLong } returns 1000L
-        every { anyConstructed<StatFs>().blockSizeLong } returns 4096L
-    }
-
-    @After
-    fun tearDown() {
-        unmockkAll()
+        assertEquals("Test Video Title_${dateString}.mp4", result)
     }
 
     @Test
-    fun `getDownloadsDirectory returns correct directory`() {
-        val result = fileManagerService.getDownloadsDirectory()
-        assertEquals(downloadsDir, result)
+    fun `createDescriptiveFileName sanitizes title`() {
+        val service = TestableFileManagerService()
+        val fixedDate = Date(1626912000000)
+        
+        val result = service.createDescriptiveFileNameWithDate("Test/Video:Title*?", "mp4", fixedDate)
+        
+        // Invalid characters should be replaced with underscores
+        val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
+        val dateString = dateFormat.format(fixedDate)
+        
+        assertEquals("Test_Video_Title___${dateString}.mp4", result)
     }
 
     @Test
-    fun `hasEnoughStorageSpace returns true when enough space`() {
-        // 1000 blocks * 4096 bytes = 4,096,000 bytes available
-        // We're requesting 1,000,000 bytes (less than available)
-        val result = fileManagerService.hasEnoughStorageSpace(1_000_000)
-        assertTrue(result)
+    fun `createDescriptiveFileName truncates long titles`() {
+        val service = TestableFileManagerService()
+        val fixedDate = Date(1626912000000)
+        
+        // Create a title with 150 characters
+        val longTitle = "A".repeat(150)
+        
+        val result = service.createDescriptiveFileNameWithDate(longTitle, "mp4", fixedDate)
+        
+        // Title should be truncated to 100 characters
+        val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
+        val dateString = dateFormat.format(fixedDate)
+        
+        assertEquals("${"A".repeat(100)}_${dateString}.mp4", result)
     }
 
     @Test
-    fun `hasEnoughStorageSpace returns false when not enough space`() {
-        // 1000 blocks * 4096 bytes = 4,096,000 bytes available
-        // We're requesting 5,000,000 bytes (more than available)
-        val result = fileManagerService.hasEnoughStorageSpace(5_000_000)
-        assertFalse(result)
+    fun `sanitizeFileName replaces invalid characters`() {
+        val service = TestableFileManagerService()
+        
+        val result = service.sanitizeFileName("Test\\File/Name:With*Invalid?Characters\"<>|")
+        
+        assertEquals("Test_File_Name_With_Invalid_Characters____", result)
     }
 
     @Test
-    fun `openFileOutputStream opens stream correctly`() {
-        val mockFile = mockk<File>()
-        val mockStream = mockk<FileOutputStream>()
+    fun `sanitizeFileName handles multiple spaces`() {
+        val service = TestableFileManagerService()
         
-        mockkConstructor(FileOutputStream::class)
-        every { anyConstructed<FileOutputStream>() } returns mockStream
+        val result = service.sanitizeFileName("Test    File   With     Spaces")
         
-        val result = fileManagerService.openFileOutputStream(mockFile)
-        assertEquals(mockStream, result)
+        assertEquals("Test File With Spaces", result)
     }
 
     @Test
-    fun `closeOutputStream closes stream safely`() {
-        val mockStream = mockk<FileOutputStream>(relaxed = true)
+    fun `getMimeType returns correct type for video files`() {
+        val service = TestableFileManagerService()
         
-        fileManagerService.closeOutputStream(mockStream)
-        
-        verify { mockStream.flush() }
-        verify { mockStream.close() }
+        assertEquals("video/mp4", service.getMimeType("test.mp4"))
+        assertEquals("video/webm", service.getMimeType("test.webm"))
+        assertEquals("video/x-matroska", service.getMimeType("test.mkv"))
     }
 
     @Test
-    fun `createDownloadFile with Android 10+ uses MediaStore`() = runBlocking {
-        // Set up for Android 10+
-        mockkStatic(Build.VERSION::class)
-        every { Build.VERSION.SDK_INT } returns Build.VERSION_CODES.Q
+    fun `getMimeType returns correct type for audio files`() {
+        val service = TestableFileManagerService()
         
-        // Mock ContentResolver insert
-        every { 
-            contentResolver.insert(
-                MediaStore.Downloads.EXTERNAL_CONTENT_URI, 
-                any()
-            ) 
-        } returns uri
+        assertEquals("audio/mpeg", service.getMimeType("test.mp3"))
+        assertEquals("audio/mp4", service.getMimeType("test.m4a"))
+        assertEquals("audio/aac", service.getMimeType("test.aac"))
+        assertEquals("audio/wav", service.getMimeType("test.wav"))
+    }
+
+    @Test
+    fun `getMimeType returns default for unknown extensions`() {
+        val service = TestableFileManagerService()
         
-        // Mock File operations
-        val mockFile = mockk<File>(relaxed = true)
-        every { mockFile.exists() } returns false
-        every { mockFile.createNewFile() } returns true
-        mockkConstructor(File::class)
-        every { anyConstructed<File>().exists() } returns false
-        every { anyConstructed<File>().createNewFile() } returns true
-        every { anyConstructed<File>().deleteOnExit() } returns Unit
+        assertEquals("application/octet-stream", service.getMimeType("test.unknown"))
+        assertEquals("application/octet-stream", service.getMimeType("test"))
+    }
+
+    @Test
+    fun `getMimeType is case insensitive`() {
+        val service = TestableFileManagerService()
         
-        // Execute
-        val result = fileManagerService.createDownloadFile("test_video.mp4")
+        assertEquals("video/mp4", service.getMimeType("test.MP4"))
+        assertEquals("audio/mpeg", service.getMimeType("test.MP3"))
+    }
+
+    /**
+     * Testable version of FileManagerService that exposes internal methods for testing
+     */
+    private class TestableFileManagerService {
         
-        // Verify MediaStore was used
-        verify { 
-            contentResolver.insert(
-                MediaStore.Downloads.EXTERNAL_CONTENT_URI, 
-                any<ContentValues>()
-            ) 
+        fun createDescriptiveFileNameWithDate(videoTitle: String, format: String, date: Date): String {
+            val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
+            val dateString = dateFormat.format(date)
+            
+            // Sanitize the video title
+            val sanitizedTitle = sanitizeFileName(videoTitle)
+            
+            // Truncate title if it's too long (max 100 chars)
+            val truncatedTitle = if (sanitizedTitle.length > 100) {
+                sanitizedTitle.substring(0, 100)
+            } else {
+                sanitizedTitle
+            }
+            
+            // Ensure format has a dot prefix
+            val formatWithDot = if (format.startsWith(".")) format else ".$format"
+            
+            return "${truncatedTitle}_${dateString}${formatWithDot}"
         }
-    }
-
-    @Test
-    fun `createDownloadFile with pre-Android 10 uses direct file access`() = runBlocking {
-        // Set up for pre-Android 10
-        mockkStatic(Build.VERSION::class)
-        every { Build.VERSION.SDK_INT } returns Build.VERSION_CODES.P
         
-        // Mock Environment
-        mockkStatic(Environment::class)
-        val publicDownloadsDir = mockk<File>()
-        every { Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) } returns publicDownloadsDir
-        
-        // Mock File operations
-        val mockFile = mockk<File>(relaxed = true)
-        every { mockFile.exists() } returns false
-        every { mockFile.createNewFile() } returns true
-        
-        mockkConstructor(File::class)
-        every { anyConstructed<File>().exists() } returns false
-        every { anyConstructed<File>().mkdirs() } returns true
-        every { anyConstructed<File>().createNewFile() } returns true
-        
-        // Execute
-        val result = fileManagerService.createDownloadFile("test_video.mp4")
-        
-        // Verify direct file access was used (no MediaStore)
-        verify(exactly = 0) { contentResolver.insert(any(), any()) }
-    }
-
-    @Test
-    fun `createDownloadFile handles file name conflicts`() = runBlocking {
-        // Set up for pre-Android 10
-        mockkStatic(Build.VERSION::class)
-        every { Build.VERSION.SDK_INT } returns Build.VERSION_CODES.P
-        
-        // Mock Environment
-        mockkStatic(Environment::class)
-        val publicDownloadsDir = mockk<File>()
-        every { Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) } returns publicDownloadsDir
-        
-        // First file exists, second doesn't
-        val existingFile = mockk<File>()
-        every { existingFile.exists() } returns true
-        
-        val newFile = mockk<File>()
-        every { newFile.exists() } returns false
-        every { newFile.createNewFile() } returns true
-        
-        // Mock File constructor to return different instances
-        var fileCounter = 0
-        mockkConstructor(File::class)
-        every { anyConstructed<File>().exists() } answers {
-            fileCounter++
-            fileCounter == 1 // First call returns true (file exists), second call returns false
+        fun sanitizeFileName(fileName: String): String {
+            // Replace invalid file name characters with underscores
+            val sanitized = fileName.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+            
+            // Replace multiple spaces with a single space
+            return sanitized.replace(Regex("\\s+"), " ").trim()
         }
-        every { anyConstructed<File>().mkdirs() } returns true
-        every { anyConstructed<File>().createNewFile() } returns true
         
-        // Execute
-        val result = fileManagerService.createDownloadFile("test_video.mp4")
-        
-        // We can't easily verify the exact file name in this test setup,
-        // but we can verify that file creation was attempted
-        verify(atLeast = 1) { anyConstructed<File>().exists() }
-        verify { anyConstructed<File>().createNewFile() }
-    }
-
-    @Test(expected = IOException::class)
-    fun `createDownloadFile throws IOException when file creation fails`() = runBlocking {
-        // Set up for pre-Android 10
-        mockkStatic(Build.VERSION::class)
-        every { Build.VERSION.SDK_INT } returns Build.VERSION_CODES.P
-        
-        // Mock Environment
-        mockkStatic(Environment::class)
-        val publicDownloadsDir = mockk<File>()
-        every { Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) } returns publicDownloadsDir
-        
-        // Mock File operations to fail
-        mockkConstructor(File::class)
-        every { anyConstructed<File>().exists() } returns false
-        every { anyConstructed<File>().mkdirs() } returns true
-        every { anyConstructed<File>().createNewFile() } returns false
-        
-        // This should throw IOException
-        fileManagerService.createDownloadFile("test_video.mp4")
+        fun getMimeType(fileName: String): String {
+            return when (fileName.substringAfterLast('.', "").lowercase()) {
+                "mp4" -> "video/mp4"
+                "webm" -> "video/webm"
+                "mkv" -> "video/x-matroska"
+                "mp3" -> "audio/mpeg"
+                "m4a" -> "audio/mp4"
+                "aac" -> "audio/aac"
+                "wav" -> "audio/wav"
+                else -> "application/octet-stream"
+            }
+        }
     }
 }

@@ -1,16 +1,25 @@
 package com.tamersarioglu.clipcatch.data.service
 
+import android.content.ContentResolver
 import android.content.ContentValues
 import android.content.Context
+import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.os.StatFs
 import android.provider.MediaStore
+import android.util.Log
+import androidx.documentfile.provider.DocumentFile
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.io.OutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,8 +33,12 @@ class FileManagerServiceImpl @Inject constructor(
 ) : FileManagerService {
 
     companion object {
+        private const val TAG = "FileManagerService"
         private const val APP_FOLDER_NAME = "ClipCatch"
-        private const val MIN_FREE_SPACE_BUFFER = 50 * 1024 * 1024 // 50MB buffer
+        private const val MIN_FREE_SPACE_BUFFER = 100 * 1024 * 1024 // 100MB buffer
+        
+        // Map to store MediaStore URIs for files (used for Android 10+)
+        private val mediaStoreUris = mutableMapOf<String, Uri>()
     }
 
     /**
@@ -34,15 +47,23 @@ class FileManagerServiceImpl @Inject constructor(
      * Uses direct file access for older Android versions
      */
     override suspend fun createDownloadFile(fileName: String, customPath: String?): File {
-        val sanitizedFileName = sanitizeFileName(fileName)
-        val uniqueFileName = getUniqueFileName(sanitizedFileName)
-        
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            // Android 10+ (API 29+): Use MediaStore
-            createFileWithMediaStore(uniqueFileName)
-        } else {
-            // Pre-Android 10: Direct file access
-            createFileWithDirectAccess(uniqueFileName, customPath)
+        return withContext(Dispatchers.IO) {
+            // First check if we have enough storage space
+            val estimatedFileSize = 100 * 1024 * 1024L // Default estimate of 100MB if unknown
+            if (!hasEnoughStorageSpace(estimatedFileSize)) {
+                throw IOException("Insufficient storage space for download")
+            }
+            
+            val sanitizedFileName = sanitizeFileName(fileName)
+            val uniqueFileName = getUniqueFileName(sanitizedFileName)
+            
+            return@withContext if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                // Android 10+ (API 29+): Use MediaStore
+                createFileWithMediaStore(uniqueFileName)
+            } else {
+                // Pre-Android 10: Direct file access
+                createFileWithDirectAccess(uniqueFileName, customPath)
+            }
         }
     }
 
@@ -83,7 +104,15 @@ class FileManagerServiceImpl @Inject constructor(
      * Opens an output stream for writing to a file
      */
     override fun openFileOutputStream(file: File): OutputStream {
-        return FileOutputStream(file)
+        // For Android 10+, we need to use ContentResolver if this is a MediaStore file
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && mediaStoreUris.containsKey(file.absolutePath)) {
+            val uri = mediaStoreUris[file.absolutePath]
+                ?: throw IOException("No MediaStore URI found for file: ${file.name}")
+            context.contentResolver.openOutputStream(uri)
+                ?: throw IOException("Failed to open output stream for URI: $uri")
+        } else {
+            FileOutputStream(file)
+        }
     }
 
     /**
@@ -94,8 +123,90 @@ class FileManagerServiceImpl @Inject constructor(
             stream?.flush()
             stream?.close()
         } catch (e: IOException) {
-            // Log error but don't throw
+            Log.e(TAG, "Error closing output stream", e)
         }
+    }
+    
+    /**
+     * Finalizes a file in MediaStore after writing is complete (Android 10+)
+     * This makes the file visible to other apps
+     */
+    override fun finalizeMediaStoreFile(file: File) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val uri = mediaStoreUris[file.absolutePath] ?: return
+            
+            val contentValues = ContentValues().apply {
+                put(MediaStore.Downloads.IS_PENDING, 0)
+            }
+            
+            try {
+                context.contentResolver.update(uri, contentValues, null, null)
+                // Remove the URI from our map after finalizing
+                mediaStoreUris.remove(file.absolutePath)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error finalizing MediaStore file", e)
+            }
+        }
+    }
+    
+    /**
+     * Deletes a file, handling both direct file access and MediaStore
+     */
+    override fun deleteFile(file: File): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && mediaStoreUris.containsKey(file.absolutePath)) {
+            val uri = mediaStoreUris[file.absolutePath] ?: return false
+            try {
+                val deleted = context.contentResolver.delete(uri, null, null) > 0
+                if (deleted) {
+                    mediaStoreUris.remove(file.absolutePath)
+                }
+                deleted
+            } catch (e: Exception) {
+                Log.e(TAG, "Error deleting MediaStore file", e)
+                false
+            }
+        } else {
+            file.delete()
+        }
+    }
+    
+    /**
+     * Gets total storage space in bytes
+     */
+    override fun getTotalStorageSpace(): Long {
+        val stat = StatFs(getDownloadsDirectory().path)
+        return stat.totalBytes
+    }
+    
+    /**
+     * Gets available storage space in bytes
+     */
+    override fun getAvailableStorageSpace(): Long {
+        val stat = StatFs(getDownloadsDirectory().path)
+        return stat.availableBytes
+    }
+    
+    /**
+     * Creates a descriptive file name based on video title and current date
+     */
+    override fun createDescriptiveFileName(videoTitle: String, format: String): String {
+        val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
+        val dateString = dateFormat.format(Date())
+        
+        // Sanitize the video title
+        val sanitizedTitle = sanitizeFileName(videoTitle)
+        
+        // Truncate title if it's too long (max 100 chars)
+        val truncatedTitle = if (sanitizedTitle.length > 100) {
+            sanitizedTitle.substring(0, 100)
+        } else {
+            sanitizedTitle
+        }
+        
+        // Ensure format has a dot prefix
+        val formatWithDot = if (format.startsWith(".")) format else ".$format"
+        
+        return "${truncatedTitle}_${dateString}${formatWithDot}"
     }
 
     /**
@@ -106,6 +217,11 @@ class FileManagerServiceImpl @Inject constructor(
             put(MediaStore.Downloads.DISPLAY_NAME, fileName)
             put(MediaStore.Downloads.MIME_TYPE, getMimeType(fileName))
             put(MediaStore.Downloads.IS_PENDING, 1)
+            
+            // Add to the ClipCatch folder
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/$APP_FOLDER_NAME")
+            }
         }
 
         val resolver = context.contentResolver
@@ -113,16 +229,11 @@ class FileManagerServiceImpl @Inject constructor(
             ?: throw IOException("Failed to create MediaStore entry")
 
         // Create a temporary file that will be used to write content
-        // The actual content will be written to MediaStore through ContentResolver
         val tempFile = File(context.cacheDir, fileName)
         tempFile.deleteOnExit() // Mark for deletion when app exits
         
-        // Store the URI as a tag on the file for later use
-        tempFile.apply {
-            // We can't actually attach the URI to the File object directly,
-            // so we'll use a static map or SharedPreferences in a real implementation
-            // For this example, we'll just return the temp file
-        }
+        // Store the URI for later use
+        mediaStoreUris[tempFile.absolutePath] = uri
         
         return tempFile
     }
@@ -158,7 +269,10 @@ class FileManagerServiceImpl @Inject constructor(
      */
     private fun sanitizeFileName(fileName: String): String {
         // Replace invalid file name characters with underscores
-        return fileName.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+        val sanitized = fileName.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+        
+        // Replace multiple spaces with a single space
+        return sanitized.replace(Regex("\\s+"), " ").trim()
     }
 
     /**
