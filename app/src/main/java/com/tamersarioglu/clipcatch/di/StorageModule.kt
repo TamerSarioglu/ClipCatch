@@ -5,6 +5,8 @@ import com.tamersarioglu.clipcatch.data.service.DownloadManagerService
 import com.tamersarioglu.clipcatch.data.service.DownloadManagerServiceImpl
 import com.tamersarioglu.clipcatch.data.service.FileManagerService
 import com.tamersarioglu.clipcatch.data.service.FileManagerServiceImpl
+import com.tamersarioglu.clipcatch.data.service.YouTubeExtractorService
+import com.tamersarioglu.clipcatch.data.service.YouTubeExtractorServiceImpl
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -29,4 +31,10 @@ object StorageModule {
         okHttpClient: OkHttpClient,
         fileManager: FileManagerService
     ): DownloadManagerService = DownloadManagerServiceImpl(okHttpClient, fileManager)
+    
+    @Provides
+    @Singleton
+    fun provideYouTubeExtractorService(
+        @ApplicationContext context: Context
+    ): YouTubeExtractorService = YouTubeExtractorServiceImpl(context)
 }

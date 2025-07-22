@@ -211,15 +211,15 @@ class FileManagerServiceImpl @Inject constructor(
      * Creates a file using MediaStore API (for Android 10+)
      */
     private fun createFileWithMediaStore(fileName: String): File {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            throw IllegalStateException("MediaStore Downloads API requires Android 10 (API 29) or higher")
+        }
+        
         val contentValues = ContentValues().apply {
             put(MediaStore.Downloads.DISPLAY_NAME, fileName)
             put(MediaStore.Downloads.MIME_TYPE, getMimeType(fileName))
             put(MediaStore.Downloads.IS_PENDING, 1)
-            
-            // Add to the ClipCatch folder
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/$APP_FOLDER_NAME")
-            }
+            put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/$APP_FOLDER_NAME")
         }
 
         val resolver = context.contentResolver
