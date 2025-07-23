@@ -1,4 +1,3 @@
-import com.android.build.api.dsl.Packaging
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -24,7 +23,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
         ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+            abiFilters += listOf("x86", "x86_64", "armeabi-v7a", "arm64-v8a")
         }
     }
 
@@ -64,7 +63,9 @@ android {
                 "lib/*/libpython*.so",
                 "lib/*/libssl*.so",
                 "lib/*/libcrypto*.so",
-                "lib/*/libc++_shared.so"
+                "lib/*/libc++_shared.so",
+                "**/libpython.so",
+                "**/libpython3.so"
             )
         }
         resources {
@@ -79,8 +80,17 @@ android {
                 "**/*.py",
                 "**/*.pyc",
                 "**/*.pyo",
-                "**/private.mp3"
+                "**/private.mp3",
+                "**/python.zip"
             )
+        }
+    }
+
+    // Configure native library extraction for youtubedl-android
+    androidComponents {
+        onVariants(selector().all()) { variant ->
+            variant.packaging.jniLibs.pickFirsts.add("**/libpython.zip.so")
+            variant.packaging.jniLibs.pickFirsts.add("**/libpython.so")
         }
     }
 }

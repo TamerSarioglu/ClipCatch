@@ -47,7 +47,9 @@ class YouTubeExtractorServiceImpl @Inject constructor(
                 )
             }
             
-            if (!isYoutubeDLAvailable()) {
+            // Ensure YouTube-DL is initialized before proceeding
+            val app = context.applicationContext as com.tamersarioglu.clipcatch.ClipCatchApplication
+            if (!app.ensureYoutubeDLInitialized()) {
                 Log.e("YouTubeExtractor", "YouTube-DL not available - native libraries missing")
                 throw YouTubeExtractionException(
                     DownloadError.UNKNOWN_ERROR,
@@ -141,15 +143,21 @@ class YouTubeExtractorServiceImpl @Inject constructor(
 
     override fun isYoutubeDLAvailable(): Boolean {
         return try {
-            // Check if YouTube-DL was initialized successfully
-            if (!com.tamersarioglu.clipcatch.ClipCatchApplication.isYoutubeDLInitialized) {
-                Log.w("YouTubeExtractor", "YouTube-DL not initialized")
+            // Ensure initialization is attempted
+            val app = context.applicationContext as com.tamersarioglu.clipcatch.ClipCatchApplication
+            if (!app.ensureYoutubeDLInitialized()) {
+                Log.w("YouTubeExtractor", "YouTube-DL initialization failed")
                 return false
             }
             
-            YoutubeDL.getInstance().version(context) != null
+            // Try to get version as a test of functionality
+            val youtubeDLInstance = YoutubeDL.getInstance()
+            val version = youtubeDLInstance.version(context)
+            Log.d("YouTubeExtractor", "YouTube-DL is available, version: $version")
+            
+            version != null
         } catch (e: Exception) {
-            Log.w("YouTubeExtractor", "YouTube-DL not available", e)
+            Log.e("YouTubeExtractor", "YouTube-DL availability check failed", e)
             false
         }
     }
