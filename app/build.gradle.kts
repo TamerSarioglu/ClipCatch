@@ -1,3 +1,4 @@
+import com.android.build.api.dsl.Packaging
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -21,6 +22,10 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
     }
 
     buildTypes {
@@ -44,6 +49,40 @@ android {
     buildFeatures {
         compose = true
     }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+            pickFirsts += listOf(
+                "**/libc++_shared.so",
+                "**/libjsc.so", 
+                "**/libfbjni.so",
+                "**/libpython.zip.so",
+                "**/libffmpeg.zip.so",
+                "**/libssl.so.1.1",
+                "**/libcrypto.so.1.1",
+                "lib/*/libpython*.so",
+                "lib/*/libssl*.so",
+                "lib/*/libcrypto*.so",
+                "lib/*/libc++_shared.so"
+            )
+        }
+        resources {
+            excludes += listOf(
+                "META-INF/DEPENDENCIES",
+                "META-INF/LICENSE",
+                "META-INF/LICENSE.txt",
+                "META-INF/NOTICE",
+                "META-INF/NOTICE.txt"
+            )
+            pickFirsts += listOf(
+                "**/*.py",
+                "**/*.pyc",
+                "**/*.pyo",
+                "**/private.mp3"
+            )
+        }
+    }
 }
 
 dependencies {
@@ -56,7 +95,7 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation("androidx.compose.material:material-icons-extended")
+    implementation(libs.androidx.material.icons.extended)
     
     // Hilt Dependency Injection
     implementation(libs.hilt.android)
@@ -78,8 +117,10 @@ dependencies {
     // ViewModel
     implementation(libs.lifecycle.viewmodel.compose)
 
-    // YouTube Downloader - using simple HTTP-based extraction only
-    // (YouTube-DL library removed due to initialization issues)
+    // YouTube Downloader
+    implementation(libs.youtubedl.library)
+    implementation(libs.youtubedl.ffmpeg)
+    implementation(libs.commons.compress)
     
     // File operations
     implementation(libs.androidx.documentfile)
@@ -90,16 +131,16 @@ dependencies {
     testImplementation(libs.robolectric)
     
     // Hilt testing
-    testImplementation("com.google.dagger:hilt-android-testing:2.57")
-    kspTest("com.google.dagger:hilt-compiler:2.57")
+    testImplementation(libs.hilt.android.testing)
+    kspTest(libs.hilt.compiler)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
     
     // Hilt testing for instrumented tests
-    androidTestImplementation("com.google.dagger:hilt-android-testing:2.57")
-    kspAndroidTest("com.google.dagger:hilt-compiler:2.57")
+    androidTestImplementation(libs.hilt.android.testing)
+    kspAndroidTest(libs.hilt.compiler)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 }

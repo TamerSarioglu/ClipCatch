@@ -43,16 +43,7 @@ object StorageModule {
     
     @Provides
     @Singleton
-    fun provideSimpleYouTubeExtractorService(
-        @ApplicationContext context: Context,
-        okHttpClient: OkHttpClient
-    ): com.tamersarioglu.clipcatch.data.service.SimpleYouTubeExtractorService = 
-        com.tamersarioglu.clipcatch.data.service.SimpleYouTubeExtractorService(context, okHttpClient)
-    
-    @Provides
-    @Singleton
     fun provideYouTubeExtractorService(
-        @ApplicationContext context: Context,
-        simpleExtractor: com.tamersarioglu.clipcatch.data.service.SimpleYouTubeExtractorService
-    ): YouTubeExtractorService = YouTubeExtractorServiceImpl(context, simpleExtractor)
+        @ApplicationContext context: Context
+    ): YouTubeExtractorService = YouTubeExtractorServiceImpl(context)
 }

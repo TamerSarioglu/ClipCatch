@@ -19,7 +19,6 @@ class ErrorHandler @Inject constructor() {
     fun mapExceptionToDownloadError(exception: Throwable): DownloadError {
         return when (exception) {
             is com.tamersarioglu.clipcatch.data.service.YouTubeExtractionException -> exception.error
-            is com.tamersarioglu.clipcatch.data.service.SimpleYouTubeExtractionException -> exception.error
             is NetworkException -> mapNetworkExceptionToDownloadError(exception)
             is SecurityException -> DownloadError.PERMISSION_DENIED
             is UnknownHostException -> DownloadError.NETWORK_ERROR

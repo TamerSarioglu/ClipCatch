@@ -4,9 +4,12 @@ import android.content.Context
 import android.util.Log
 import com.tamersarioglu.clipcatch.data.dto.VideoInfoDto
 import com.tamersarioglu.clipcatch.domain.model.DownloadError
+import com.yausername.youtubedl_android.YoutubeDL
+import com.yausername.youtubedl_android.YoutubeDLRequest
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -14,12 +17,12 @@ interface YouTubeExtractorService {
 
     suspend fun extractVideoInfo(url: String): VideoInfoDto
     fun isValidYouTubeUrl(url: String): Boolean
+    fun isYoutubeDLAvailable(): Boolean
 }
 
 @Singleton
 class YouTubeExtractorServiceImpl @Inject constructor(
-    @ApplicationContext private val context: Context,
-    private val simpleExtractor: SimpleYouTubeExtractorService
+    @ApplicationContext private val context: Context
 ) : YouTubeExtractorService {
     
     companion object {
@@ -44,8 +47,72 @@ class YouTubeExtractorServiceImpl @Inject constructor(
                 )
             }
             
-            Log.d("YouTubeExtractor", "Using simple HTTP-based extraction...")
-            return@withContext simpleExtractor.extractVideoInfo(url)
+            if (!isYoutubeDLAvailable()) {
+                Log.e("YouTubeExtractor", "YouTube-DL not available - native libraries missing")
+                throw YouTubeExtractionException(
+                    DownloadError.UNKNOWN_ERROR,
+                    "YouTube-DL initialization failed. Please reinstall the app or contact support."
+                )
+            }
+            
+            Log.d("YouTubeExtractor", "Using YouTube-DL for video info extraction...")
+            
+            val request = YoutubeDLRequest(url).apply {
+                addOption("--dump-json")
+                addOption("--no-playlist")
+                addOption("--format", "best[ext=mp4]/best")
+                addOption("--no-check-certificate")
+                addOption("--prefer-free-formats")
+                addOption("--add-header", "referer:youtube.com")
+                addOption("--add-header", "user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            }
+            
+            val response = YoutubeDL.getInstance().execute(request)
+            
+            if (response.exitCode != 0) {
+                val errorMessage = response.err ?: "Unknown YouTube-DL error"
+                Log.e("YouTubeExtractor", "YouTube-DL failed with exit code ${response.exitCode}: $errorMessage")
+                handleYoutubeDLError(errorMessage, url)
+            }
+            
+            val jsonOutput = response.out
+            if (jsonOutput.isNullOrBlank()) {
+                throw YouTubeExtractionException(
+                    DownloadError.UNKNOWN_ERROR,
+                    "YouTube-DL returned empty output for URL: $url"
+                )
+            }
+            
+            Log.d("YouTubeExtractor", "Parsing YouTube-DL JSON response...")
+            val videoJson = JSONObject(jsonOutput)
+            
+            val videoId = videoJson.optString("id", "")
+            val title = videoJson.optString("title", "Unknown Title")
+            val duration = videoJson.optLong("duration", 0L)
+            val thumbnailUrl = videoJson.optString("thumbnail")
+            val fileSize = videoJson.optLong("filesize", 0L).takeIf { it > 0 }
+            val format = videoJson.optString("ext", "mp4")
+            
+            // Get the actual download URL
+            val downloadUrl = videoJson.optString("url", "")
+            if (downloadUrl.isBlank()) {
+                throw YouTubeExtractionException(
+                    DownloadError.VIDEO_UNAVAILABLE,
+                    "Could not extract download URL from video info"
+                )
+            }
+            
+            Log.d("YouTubeExtractor", "Successfully extracted video info: $title")
+            
+            return@withContext VideoInfoDto(
+                id = videoId,
+                title = title,
+                downloadUrl = downloadUrl,
+                thumbnailUrl = thumbnailUrl.takeIf { it.isNotBlank() },
+                duration = duration,
+                fileSize = fileSize,
+                format = format
+            )
             
         } catch (e: YouTubeExtractionException) {
             Log.e("YouTubeExtractor", "YouTube extraction exception: ${e.message}", e)
@@ -69,6 +136,21 @@ class YouTubeExtractorServiceImpl @Inject constructor(
         
         return YOUTUBE_URL_PATTERNS.any { pattern ->
             pattern.matches(normalizedUrl)
+        }
+    }
+
+    override fun isYoutubeDLAvailable(): Boolean {
+        return try {
+            // Check if YouTube-DL was initialized successfully
+            if (!com.tamersarioglu.clipcatch.ClipCatchApplication.isYoutubeDLInitialized) {
+                Log.w("YouTubeExtractor", "YouTube-DL not initialized")
+                return false
+            }
+            
+            YoutubeDL.getInstance().version(context) != null
+        } catch (e: Exception) {
+            Log.w("YouTubeExtractor", "YouTube-DL not available", e)
+            false
         }
     }
 

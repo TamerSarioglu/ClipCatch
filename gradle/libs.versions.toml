@@ -1,6 +1,8 @@
 [versions]
 agp = "8.12.0-alpha08"
-
+youtubedl = "0.15.0"
+commonsCompress = "1.27.1"
+hiltAndroidTesting = "2.57"
 kotlin = "2.2.0"
 coreKtx = "1.16.0"
 junit = "4.13.2"
@@ -19,13 +21,20 @@ okhttp = "5.1.0"
 kotlinxCoroutines = "1.10.2"
 lifecycleViewmodel = "2.9.2"
 documentfile = "1.1.0"
-mockk = "1.13.8"
+mockk = "1.14.5"
 kotlinxCoroutinesTest = "1.10.2"
-robolectric = "4.11.1"
+robolectric = "4.15.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 
+# YouTube Downloader
+youtubedl-library = { module = "com.github.yausername.youtubedl-android:library", version.ref = "youtubedl" }
+youtubedl-ffmpeg = { module = "com.github.yausername.youtubedl-android:ffmpeg", version.ref = "youtubedl" }
+commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commonsCompress" }
+
+androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
+hilt-android-testing = { module = "com.google.dagger:hilt-android-testing", version.ref = "hiltAndroidTesting" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
