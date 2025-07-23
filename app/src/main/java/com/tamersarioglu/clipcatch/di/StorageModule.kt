@@ -22,15 +22,20 @@ object StorageModule {
     @Provides
     @Singleton
     fun provideFileManagerService(
-        @ApplicationContext context: Context
-    ): FileManagerService = FileManagerServiceImpl(context)
+        @ApplicationContext context: Context,
+        logger: com.tamersarioglu.clipcatch.data.util.Logger
+    ): FileManagerService = FileManagerServiceImpl(context, logger)
     
     @Provides
     @Singleton
     fun provideDownloadManagerService(
         okHttpClient: OkHttpClient,
-        fileManager: FileManagerService
-    ): DownloadManagerService = DownloadManagerServiceImpl(okHttpClient, fileManager)
+        fileManager: FileManagerService,
+        errorHandler: com.tamersarioglu.clipcatch.data.util.ErrorHandler,
+        logger: com.tamersarioglu.clipcatch.data.util.Logger,
+        networkUtils: com.tamersarioglu.clipcatch.data.util.NetworkUtils,
+        retryUtils: com.tamersarioglu.clipcatch.data.util.RetryUtils
+    ): DownloadManagerService = DownloadManagerServiceImpl(okHttpClient, fileManager, errorHandler, logger, networkUtils, retryUtils)
     
     @Provides
     @Singleton

@@ -90,10 +90,18 @@ dependencies {
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.robolectric)
+    
+    // Hilt testing
+    testImplementation("com.google.dagger:hilt-android-testing:2.57")
+    kspTest("com.google.dagger:hilt-compiler:2.57")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
+    
+    // Hilt testing for instrumented tests
+    androidTestImplementation("com.google.dagger:hilt-android-testing:2.57")
+    kspAndroidTest("com.google.dagger:hilt-compiler:2.57")
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 }

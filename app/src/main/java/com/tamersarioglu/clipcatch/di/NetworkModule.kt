@@ -51,8 +51,11 @@ object NetworkModule {
     
     @Provides
     @Singleton
-    fun provideNetworkUtils(@ApplicationContext context: Context): NetworkUtils {
-        return NetworkUtils(context)
+    fun provideNetworkUtils(
+        @ApplicationContext context: Context,
+        logger: com.tamersarioglu.clipcatch.data.util.Logger
+    ): NetworkUtils {
+        return NetworkUtils(context, logger)
     }
     
     @Provides

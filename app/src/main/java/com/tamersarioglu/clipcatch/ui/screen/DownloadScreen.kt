@@ -2,6 +2,7 @@ package com.tamersarioglu.clipcatch.ui.screen
 
 import android.Manifest
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -37,6 +39,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -62,7 +65,12 @@ fun DownloadScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
     val snackbarHostState = remember { SnackbarHostState() }
+    
+    // Determine if we're in landscape mode or on a large screen
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val isLargeScreen = configuration.screenWidthDp >= 600
     
     // Permission launcher for storage access
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -92,9 +100,17 @@ fun DownloadScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp)
+                .padding(
+                    horizontal = if (isLargeScreen) 32.dp else 16.dp,
+                    vertical = if (isLandscape) 8.dp else 16.dp
+                )
+                .then(
+                    if (isLargeScreen) Modifier.widthIn(max = 800.dp) else Modifier
+                )
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(
+                if (isLandscape) 12.dp else 16.dp
+            )
         ) {
             // App title and description
             Text(
@@ -122,7 +138,7 @@ fun DownloadScreen(
                     }
             )
             
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(if (isLandscape) 4.dp else 8.dp))
             
             // URL input field
             UrlInputField(

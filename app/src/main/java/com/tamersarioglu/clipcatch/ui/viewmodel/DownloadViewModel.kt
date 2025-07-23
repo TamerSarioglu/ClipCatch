@@ -2,6 +2,9 @@ package com.tamersarioglu.clipcatch.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tamersarioglu.clipcatch.data.util.ErrorHandler
+import com.tamersarioglu.clipcatch.data.util.ErrorRecoveryAction
+import com.tamersarioglu.clipcatch.data.util.Logger
 import com.tamersarioglu.clipcatch.domain.model.DownloadError
 import com.tamersarioglu.clipcatch.domain.model.DownloadProgress
 import com.tamersarioglu.clipcatch.domain.usecase.DownloadVideoUseCase
@@ -16,15 +19,20 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** ViewModel for managing download screen state and operations */
 @HiltViewModel
 class DownloadViewModel
 @Inject
 constructor(
         private val downloadVideoUseCase: DownloadVideoUseCase,
         private val validateUrlUseCase: ValidateUrlUseCase,
-        private val getVideoInfoUseCase: GetVideoInfoUseCase
+        private val getVideoInfoUseCase: GetVideoInfoUseCase,
+        private val errorHandler: ErrorHandler,
+        private val logger: Logger
 ) : ViewModel() {
+    
+    companion object {
+        private const val TAG = "DownloadViewModel"
+    }
 
     private val _uiState = MutableStateFlow(DownloadUiState())
     val uiState: StateFlow<DownloadUiState> = _uiState.asStateFlow()
@@ -32,7 +40,6 @@ constructor(
     private var downloadJob: Job? = null
     private var validationJob: Job? = null
 
-    /** Updates the URL input and triggers real-time validation */
     fun onUrlChanged(url: String) {
         _uiState.value =
                 _uiState.value.copy(
@@ -44,19 +51,18 @@ constructor(
                         downloadedFilePath = null
                 )
 
-        // Cancel previous validation job
         validationJob?.cancel()
 
-        // Start new validation with debouncing
         validationJob =
                 viewModelScope.launch {
-                    kotlinx.coroutines.delay(300) // Debounce for 300ms
+                    kotlinx.coroutines.delay(300)
                     validateUrl(url)
                 }
     }
 
-    /** Validates the current URL and updates the UI state */
     private suspend fun validateUrl(url: String) {
+        logger.enter(TAG, "validateUrl", url)
+        
         if (url.isBlank()) {
             _uiState.value =
                     _uiState.value.copy(
@@ -73,14 +79,14 @@ constructor(
 
         try {
             val validationResult = validateUrlUseCase(url)
+            logger.d(TAG, "URL validation result: ${validationResult.isValid}")
 
             _uiState.value =
                     _uiState.value.copy(
                             isValidatingUrl = false,
                             isUrlValid = validationResult.isValid,
                             urlErrorMessage = validationResult.errorMessage,
-                            canStartDownload =
-                                    validationResult.isValid && !_uiState.value.isDownloading
+                            canStartDownload = validationResult.isValid && !_uiState.value.isDownloading
                     )
 
             // If URL is valid, extract video info
@@ -90,18 +96,21 @@ constructor(
                 _uiState.value = _uiState.value.copy(videoInfo = null)
             }
         } catch (e: Exception) {
+            logger.e(TAG, "Error during URL validation", e)
+            val error = errorHandler.mapExceptionToDownloadError(e)
+            val message = errorHandler.getErrorMessage(error)
+            
             _uiState.value =
                     _uiState.value.copy(
                             isValidatingUrl = false,
                             isUrlValid = false,
-                            urlErrorMessage = "Error validating URL: ${e.message}",
+                            urlErrorMessage = message,
                             canStartDownload = false,
                             videoInfo = null
                     )
         }
     }
 
-    /** Extracts video information for the given URL */
     private suspend fun extractVideoInfo(url: String) {
         _uiState.value = _uiState.value.copy(isLoadingVideoInfo = true)
 
@@ -136,7 +145,6 @@ constructor(
         }
     }
 
-    /** Starts the video download process */
     fun downloadVideo() {
         val currentState = _uiState.value
 
@@ -144,10 +152,8 @@ constructor(
             return
         }
 
-        // Cancel any existing download
         downloadJob?.cancel()
 
-        // Reset state for new download
         _uiState.value =
                 currentState.copy(
                         isDownloading = true,
@@ -171,7 +177,6 @@ constructor(
                 }
     }
 
-    /** Handles download progress updates */
     private fun handleDownloadProgress(progress: DownloadProgress) {
         when (progress) {
             is DownloadProgress.Progress -> {
@@ -200,45 +205,80 @@ constructor(
         }
     }
 
-    /** Handles download errors */
     private fun handleDownloadError(exception: Throwable) {
-        val message =
-                when (exception) {
-                    is IllegalArgumentException -> exception.message ?: "Invalid input"
-                    else -> "Download failed: ${exception.message}"
-                }
+        logger.e(TAG, "Download error occurred", exception)
+        
+        val error = errorHandler.mapExceptionToDownloadError(exception)
+        val message = errorHandler.getErrorMessage(error)
+        val recoveryAction = errorHandler.getRecoveryAction(error)
+        
+        logger.d(TAG, "Mapped error: $error, Recovery action: $recoveryAction")
 
         _uiState.value =
                 _uiState.value.copy(
                         isDownloading = false,
-                        error = DownloadError.UNKNOWN_ERROR,
+                        error = error,
                         errorMessage = message,
-                        canStartDownload = true
+                        canStartDownload = true,
+                        recoveryAction = recoveryAction
                 )
     }
 
-    /** Converts DownloadError enum to user-friendly error messages */
     private fun getErrorMessage(error: DownloadError): String {
-        return when (error) {
-            DownloadError.INVALID_URL ->
-                    "The provided URL is not valid. Please check and try again."
-            DownloadError.NETWORK_ERROR ->
-                    "Network connection error. Please check your internet connection and try again."
-            DownloadError.STORAGE_ERROR ->
-                    "Unable to save the file. Please check storage permissions and available space."
-            DownloadError.PERMISSION_DENIED ->
-                    "Storage permission is required to download videos. Please grant permission and try again."
-            DownloadError.VIDEO_UNAVAILABLE ->
-                    "This video is not available for download. It may be private or deleted."
-            DownloadError.INSUFFICIENT_STORAGE ->
-                    "Not enough storage space available. Please free up some space and try again."
-            DownloadError.AGE_RESTRICTED -> "This video is age-restricted and cannot be downloaded."
-            DownloadError.GEO_BLOCKED -> "This video is not available in your region."
-            DownloadError.UNKNOWN_ERROR -> "An unexpected error occurred. Please try again."
+        return errorHandler.getErrorMessage(error)
+    }
+    
+    fun attemptErrorRecovery() {
+        val currentState = _uiState.value
+        val error = currentState.error ?: return
+        val recoveryAction = currentState.recoveryAction ?: return
+        
+        logger.i(TAG, "Attempting error recovery for: $error with action: $recoveryAction")
+        
+        when (recoveryAction) {
+            ErrorRecoveryAction.RETRY -> {
+                if (errorHandler.isRecoverableError(error)) {
+                    logger.d(TAG, "Retrying download operation")
+                    downloadVideo()
+                } else {
+                    logger.w(TAG, "Error is not recoverable, cannot retry")
+                }
+            }
+            ErrorRecoveryAction.REQUEST_PERMISSION -> {
+                logger.d(TAG, "Permission request needed - handled by UI")
+            }
+            ErrorRecoveryAction.CHECK_STORAGE -> {
+                logger.d(TAG, "Storage check needed - handled by UI")
+            }
+            ErrorRecoveryAction.FREE_STORAGE -> {
+                logger.d(TAG, "Storage cleanup needed - handled by UI")
+            }
+            ErrorRecoveryAction.CORRECT_URL -> {
+                logger.d(TAG, "URL correction needed - clearing current URL")
+                onUrlChanged("")
+            }
+            ErrorRecoveryAction.TRY_DIFFERENT_VIDEO -> {
+                logger.d(TAG, "Different video needed - clearing current URL")
+                onUrlChanged("")
+            }
+            ErrorRecoveryAction.CONTACT_SUPPORT -> {
+                logger.d(TAG, "Support contact needed - handled by UI")
+            }
+        }
+    }
+    
+    fun getDetailedErrorInfo(): String? {
+        val currentState = _uiState.value
+        val error = currentState.error ?: return null
+        
+        return buildString {
+            append("Error Type: ${error.name}\n")
+            append("Message: ${currentState.errorMessage}\n")
+            append("Recovery Action: ${currentState.recoveryAction?.name}\n")
+            append("Is Recoverable: ${errorHandler.isRecoverableError(error)}\n")
         }
     }
 
-    /** Cancels the current download operation */
     fun cancelDownload() {
         downloadJob?.cancel()
         _uiState.value =
@@ -249,13 +289,11 @@ constructor(
                 )
     }
 
-    /** Clears the current error state */
     fun clearError() {
         _uiState.value =
                 _uiState.value.copy(error = null, errorMessage = null, urlErrorMessage = null)
     }
 
-    /** Resets the download state (useful for starting a new download) */
     fun resetDownloadState() {
         downloadJob?.cancel()
         _uiState.value =

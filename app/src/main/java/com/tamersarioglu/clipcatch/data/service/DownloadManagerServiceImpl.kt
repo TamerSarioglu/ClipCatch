@@ -1,6 +1,10 @@
 package com.tamersarioglu.clipcatch.data.service
 
 import com.tamersarioglu.clipcatch.data.dto.DownloadProgressDto
+import com.tamersarioglu.clipcatch.data.util.ErrorHandler
+import com.tamersarioglu.clipcatch.data.util.Logger
+import com.tamersarioglu.clipcatch.data.util.NetworkUtils
+import com.tamersarioglu.clipcatch.data.util.RetryUtils
 import com.tamersarioglu.clipcatch.domain.model.DownloadError
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -21,166 +25,132 @@ import javax.inject.Singleton
 import kotlin.math.min
 import kotlin.math.pow
 
-/**
- * Implementation of DownloadManagerService that handles video downloads with progress tracking,
- * file streaming, and retry mechanism with exponential backoff.
- */
 @Singleton
 class DownloadManagerServiceImpl @Inject constructor(
     private val okHttpClient: OkHttpClient,
-    private val fileManagerService: FileManagerService
+    private val fileManagerService: FileManagerService,
+    private val errorHandler: ErrorHandler,
+    private val logger: Logger,
+    private val networkUtils: NetworkUtils,
+    private val retryUtils: RetryUtils
 ) : DownloadManagerService {
 
-    // Track active downloads by URL
+    companion object {
+        private const val TAG = "DownloadManagerService"
+        private const val DEFAULT_BUFFER_SIZE = 8 * 1024
+        private const val MAX_RETRY_ATTEMPTS = 3
+        private const val BASE_RETRY_DELAY = 1000L
+    }
+
     private val activeDownloads = ConcurrentHashMap<String, Boolean>()
-    
-    // Track cancellation requests by URL
     private val cancellationRequests = ConcurrentHashMap<String, Boolean>()
-    
-    // Default buffer size for streaming (8KB)
-    private val DEFAULT_BUFFER_SIZE = 8 * 1024
-    
-    // Maximum number of retry attempts
-    private val MAX_RETRY_ATTEMPTS = 3
-    
-    // Base delay for exponential backoff (in milliseconds)
-    private val BASE_RETRY_DELAY = 1000L
+    private val cleanupTasks = ConcurrentHashMap<String, () -> Unit>()
 
     override suspend fun downloadVideo(
         url: String, 
         fileName: String,
         destinationPath: String?
     ): Flow<DownloadProgressDto> = flow {
-        // Validate inputs
-        if (url.isBlank()) {
-            emit(DownloadProgressDto.Error(
-                errorType = DownloadError.INVALID_URL.name,
-                message = "Download URL cannot be empty"
-            ))
-            return@flow
-        }
+        logger.enter(TAG, "downloadVideo", url, fileName, destinationPath)
         
-        if (fileName.isBlank()) {
-            emit(DownloadProgressDto.Error(
-                errorType = DownloadError.STORAGE_ERROR.name,
-                message = "File name cannot be empty"
-            ))
-            return@flow
-        }
-        
-        // Check if download is already in progress
-        if (isDownloadInProgress(url)) {
-            emit(DownloadProgressDto.Error(
-                errorType = DownloadError.UNKNOWN_ERROR.name,
-                message = "Download already in progress for this URL"
-            ))
-            return@flow
-        }
-        
-        // Mark download as active
-        activeDownloads[url] = true
-        
-        // Clear any previous cancellation request
-        cancellationRequests.remove(url)
-        
-        var currentAttempt = 0
-        var lastError: Exception? = null
-        
-        // Retry loop with exponential backoff
-        while (currentAttempt <= MAX_RETRY_ATTEMPTS) {
-            if (cancellationRequests[url] == true) {
+        try {
+            if (url.isBlank()) {
+                logger.w(TAG, "Download URL is empty")
                 emit(DownloadProgressDto.Error(
-                    errorType = DownloadError.UNKNOWN_ERROR.name,
-                    message = "Download was canceled"
+                    errorType = DownloadError.INVALID_URL.name,
+                    message = "Download URL cannot be empty"
                 ))
-                break
+                return@flow
             }
             
-            try {
-                // If this is a retry, emit progress update
-                if (currentAttempt > 0) {
+            if (fileName.isBlank()) {
+                logger.w(TAG, "File name is empty")
+                emit(DownloadProgressDto.Error(
+                    errorType = DownloadError.STORAGE_ERROR.name,
+                    message = "File name cannot be empty"
+                ))
+                return@flow
+            }
+            
+            val networkInfo = networkUtils.getNetworkInfo()
+            if (!networkInfo.isAvailable) {
+                logger.w(TAG, "No network connection available")
+                emit(DownloadProgressDto.Error(
+                    errorType = DownloadError.NETWORK_ERROR.name,
+                    message = "No internet connection available"
+                ))
+                return@flow
+            }
+            
+            if (isDownloadInProgress(url)) {
+                logger.w(TAG, "Download already in progress for URL: $url")
+                emit(DownloadProgressDto.Error(
+                    errorType = DownloadError.UNKNOWN_ERROR.name,
+                    message = "Download already in progress for this URL"
+                ))
+                return@flow
+            }
+            
+            activeDownloads[url] = true
+            logger.i(TAG, "Starting download for: $fileName")
+            
+            cancellationRequests.remove(url)
+            
+            val result = retryUtils.executeWithRetry(
+                maxAttempts = MAX_RETRY_ATTEMPTS,
+                baseDelayMs = BASE_RETRY_DELAY,
+                retryCondition = { exception ->
+                    val isRetryable = when (exception) {
+                        is CancellationException -> false
+                        is SecurityException -> false
+                        else -> errorHandler.isRecoverableError(errorHandler.mapExceptionToDownloadError(exception))
+                    }
+                    logger.d(TAG, "Exception is retryable: $isRetryable for ${exception.javaClass.simpleName}")
+                    isRetryable
+                }
+            ) { attempt ->
+                logger.d(TAG, "Download attempt $attempt for: $fileName")
+                
+                if (cancellationRequests[url] == true) {
+                    throw CancellationException("Download canceled")
+                }
+                
+                if (attempt > 1) {
                     emit(DownloadProgressDto.Progress(0))
                 }
                 
-                // Perform the actual download
-                val result = performDownload(url, fileName, destinationPath) { progress ->
-                    // Check for cancellation during download
+                performDownload(url, fileName, destinationPath) { progress ->
                     if (cancellationRequests[url] == true) {
                         throw CancellationException("Download canceled")
                     }
                     emit(DownloadProgressDto.Progress(progress))
                 }
-                
-                // Download completed successfully
-                emit(DownloadProgressDto.Success(result))
-                break
-                
-            } catch (e: CancellationException) {
-                emit(DownloadProgressDto.Error(
-                    errorType = DownloadError.UNKNOWN_ERROR.name,
-                    message = "Download was canceled"
-                ))
-                break
-                
-            } catch (e: UnknownHostException) {
-                lastError = e
-                if (currentAttempt >= MAX_RETRY_ATTEMPTS) {
-                    emit(DownloadProgressDto.Error(
-                        errorType = DownloadError.NETWORK_ERROR.name,
-                        message = "No internet connection available"
-                    ))
-                }
-                
-            } catch (e: SocketTimeoutException) {
-                lastError = e
-                if (currentAttempt >= MAX_RETRY_ATTEMPTS) {
-                    emit(DownloadProgressDto.Error(
-                        errorType = DownloadError.NETWORK_ERROR.name,
-                        message = "Connection timeout during download"
-                    ))
-                }
-                
-            } catch (e: IOException) {
-                lastError = e
-                if (currentAttempt >= MAX_RETRY_ATTEMPTS) {
-                    emit(DownloadProgressDto.Error(
-                        errorType = DownloadError.STORAGE_ERROR.name,
-                        message = "Storage error: ${e.message}"
-                    ))
-                }
-                
-            } catch (e: SecurityException) {
-                lastError = e
-                // Don't retry permission errors
-                emit(DownloadProgressDto.Error(
-                    errorType = DownloadError.PERMISSION_DENIED.name,
-                    message = "Storage permission denied"
-                ))
-                break
-                
-            } catch (e: Exception) {
-                lastError = e
-                if (currentAttempt >= MAX_RETRY_ATTEMPTS) {
-                    emit(DownloadProgressDto.Error(
-                        errorType = DownloadError.UNKNOWN_ERROR.name,
-                        message = "Download failed: ${e.message}"
-                    ))
-                }
             }
             
-            // If we reach here and haven't hit max retries, implement exponential backoff
-            if (currentAttempt < MAX_RETRY_ATTEMPTS) {
-                val backoffDelay = calculateBackoffDelay(currentAttempt)
-                delay(backoffDelay)
-                currentAttempt++
-            } else {
-                break
-            }
+            logger.i(TAG, "Download completed successfully: $result")
+            emit(DownloadProgressDto.Success(result))
+            
+        } catch (e: CancellationException) {
+            logger.i(TAG, "Download was canceled: $fileName")
+            emit(DownloadProgressDto.Error(
+                errorType = DownloadError.UNKNOWN_ERROR.name,
+                message = "Download was canceled"
+            ))
+            
+        } catch (e: Exception) {
+            val error = errorHandler.mapExceptionToDownloadError(e)
+            val message = errorHandler.getErrorMessage(error)
+            logger.e(TAG, "Download failed for: $fileName", e)
+            
+            emit(DownloadProgressDto.Error(
+                errorType = error.name,
+                message = message
+            ))
+            
+        } finally {
+            // Clean up resources
+            performCleanup(url)
         }
-        
-        // Clean up
-        activeDownloads.remove(url)
-        cancellationRequests.remove(url)
     }
 
     override suspend fun cancelDownload(url: String): Boolean {
@@ -197,15 +167,6 @@ class DownloadManagerServiceImpl @Inject constructor(
         return activeDownloads[url] == true
     }
     
-    /**
-     * Performs the actual download operation with progress tracking
-     * 
-     * @param url The URL to download from
-     * @param fileName The name to save the file as
-     * @param destinationPath Optional custom destination path
-     * @param progressCallback Callback function to report download progress
-     * @return The path to the downloaded file
-     */
     private suspend fun performDownload(
         url: String,
         fileName: String,
@@ -216,36 +177,28 @@ class DownloadManagerServiceImpl @Inject constructor(
         var outputStream: OutputStream? = null
         
         try {
-            // Create the request
             val request = Request.Builder()
                 .url(url)
                 .build()
             
-            // Execute the request
             val response = okHttpClient.newCall(request).execute()
             
             if (!response.isSuccessful) {
                 throw IOException("Unexpected response code: ${response.code}")
             }
             
-            // Get content length for progress calculation
             val contentLength = response.body.contentLength()
             
-            // Check if we have enough storage space
             if (contentLength > 0 && !fileManagerService.hasEnoughStorageSpace(contentLength)) {
                 throw IOException("Insufficient storage space")
             }
             
-            // Create the output file
             val outputFile = fileManagerService.createDownloadFile(fileName, destinationPath)
             
-            // Get input stream from response
             inputStream = response.body.byteStream()
             
-            // Get output stream for file
             outputStream = fileManagerService.openFileOutputStream(outputFile)
             
-            // Stream the data with progress updates
             val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
             var bytesRead: Int
             var totalBytesRead = 0L
@@ -255,46 +208,45 @@ class DownloadManagerServiceImpl @Inject constructor(
                 outputStream.write(buffer, 0, bytesRead)
                 totalBytesRead += bytesRead
                 
-                // Calculate progress percentage
                 val progress = if (contentLength > 0) {
                     (totalBytesRead * 100 / contentLength).toInt()
                 } else {
-                    // If content length is unknown, use indeterminate progress
                     min(99, ((totalBytesRead / DEFAULT_BUFFER_SIZE) % 100).toInt())
                 }
                 
-                // Only emit progress updates when there's a change to avoid flooding
                 if (progress > lastProgressUpdate) {
                     progressCallback(progress)
                     lastProgressUpdate = progress
                 }
             }
             
-            // Ensure 100% progress is reported
             if (lastProgressUpdate < 100) {
                 progressCallback(100)
             }
             
-            // Return the path to the downloaded file
             outputFile.absolutePath
             
         } finally {
-            // Clean up resources
             inputStream?.close()
             fileManagerService.closeOutputStream(outputStream)
         }
     }
     
-    /**
-     * Calculates the delay for exponential backoff retry strategy
-     * 
-     * @param attempt The current attempt number (0-based)
-     * @return Delay time in milliseconds
-     */
     private fun calculateBackoffDelay(attempt: Int): Long {
-        // Exponential backoff with jitter: base * 2^attempt + random jitter
         val exponentialDelay = BASE_RETRY_DELAY * 2.0.pow(attempt.toDouble()).toLong()
         val jitter = (exponentialDelay * 0.2 * Math.random()).toLong()
         return exponentialDelay + jitter
+    }
+    
+    private fun performCleanup(url: String) {
+        logger.d(TAG, "Performing cleanup for URL: $url")
+        
+        activeDownloads.remove(url)
+        
+        cancellationRequests.remove(url)
+        
+        cleanupTasks.remove(url)?.invoke()
+        
+        logger.d(TAG, "Cleanup completed for URL: $url")
     }
 }
