@@ -16,50 +16,18 @@ import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Service for monitoring storage space and managing storage-related operations
- */
+
 interface StorageMonitorService {
-    
-    /**
-     * Gets current storage information
-     */
+
     fun getCurrentStorageInfo(): StorageInfo
-    
-    /**
-     * Flow that emits storage information updates
-     */
     fun storageInfoFlow(): StateFlow<StorageInfo>
-    
-    /**
-     * Checks if there's enough space for a download
-     */
     fun hasEnoughSpaceForDownload(requiredBytes: Long): Boolean
-    
-    /**
-     * Gets recommended cleanup actions when storage is low
-     */
     fun getCleanupRecommendations(): List<CleanupRecommendation>
-    
-    /**
-     * Performs automatic cleanup of temporary files
-     */
     suspend fun performAutomaticCleanup(): CleanupResult
-    
-    /**
-     * Starts monitoring storage space
-     */
     fun startMonitoring()
-    
-    /**
-     * Stops monitoring storage space
-     */
     fun stopMonitoring()
 }
 
-/**
- * Implementation of StorageMonitorService
- */
 @Singleton
 class StorageMonitorServiceImpl @Inject constructor(
     private val context: Context,
@@ -69,16 +37,14 @@ class StorageMonitorServiceImpl @Inject constructor(
     
     companion object {
         private const val TAG = "StorageMonitorService"
-        private const val MONITORING_INTERVAL_MS = 30000L // 30 seconds
-        private const val LOW_STORAGE_THRESHOLD = 500 * 1024 * 1024L // 500MB
-        private const val CRITICAL_STORAGE_THRESHOLD = 100 * 1024 * 1024L // 100MB
+        private const val MONITORING_INTERVAL_MS = 30000L
+        private const val LOW_STORAGE_THRESHOLD = 500 * 1024 * 1024L
+        private const val CRITICAL_STORAGE_THRESHOLD = 100 * 1024 * 1024L
     }
     
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    
     private val _storageInfo = MutableStateFlow(getCurrentStorageInfo())
     private val storageInfo: StateFlow<StorageInfo> = _storageInfo.asStateFlow()
-    
     private var isMonitoring = false
     
     override fun getCurrentStorageInfo(): StorageInfo {
@@ -173,14 +139,12 @@ class StorageMonitorServiceImpl @Inject constructor(
         val cleanupActions = mutableListOf<String>()
         
         try {
-            // Clean up cache directory
             val cacheSpaceFreed = cleanupCacheDirectory()
             totalSpaceFreed += cacheSpaceFreed
             if (cacheSpaceFreed > 0) {
                 cleanupActions.add("Cleared ${formatBytes(cacheSpaceFreed)} from cache")
             }
             
-            // Clean up temporary files
             val tempSpaceFreed = cleanupTemporaryFiles()
             totalSpaceFreed += tempSpaceFreed
             if (tempSpaceFreed > 0) {
@@ -224,7 +188,6 @@ class StorageMonitorServiceImpl @Inject constructor(
                     
                     logger.d(TAG, "Storage info updated: ${formatBytes(currentInfo.availableBytes)} available, Status: ${currentInfo.status}")
                     
-                    // Log warnings for low storage
                     when (currentInfo.status) {
                         StorageStatus.LOW -> {
                             logger.w(TAG, "Low storage warning: ${formatBytes(currentInfo.availableBytes)} remaining")
@@ -232,7 +195,7 @@ class StorageMonitorServiceImpl @Inject constructor(
                         StorageStatus.CRITICAL -> {
                             logger.e(TAG, "Critical storage warning: ${formatBytes(currentInfo.availableBytes)} remaining")
                         }
-                        else -> { /* Normal storage levels */ }
+                        else -> {  }
                     }
                     
                 } catch (e: Exception) {
@@ -253,10 +216,7 @@ class StorageMonitorServiceImpl @Inject constructor(
         logger.i(TAG, "Stopping storage monitoring")
         isMonitoring = false
     }
-    
-    /**
-     * Cleans up the app's cache directory
-     */
+
     private fun cleanupCacheDirectory(): Long {
         return try {
             val cacheDir = context.cacheDir
@@ -276,10 +236,7 @@ class StorageMonitorServiceImpl @Inject constructor(
             0L
         }
     }
-    
-    /**
-     * Cleans up temporary files
-     */
+
     private fun cleanupTemporaryFiles(): Long {
         return try {
             val tempDir = File(context.filesDir, "temp")
@@ -288,7 +245,7 @@ class StorageMonitorServiceImpl @Inject constructor(
             val initialSize = getDirSize(tempDir)
             
             tempDir.listFiles()?.forEach { file ->
-                if (file.lastModified() < System.currentTimeMillis() - 24 * 60 * 60 * 1000) { // Older than 24 hours
+                if (file.lastModified() < System.currentTimeMillis() - 24 * 60 * 60 * 1000) {
                     file.delete()
                 }
             }
@@ -301,10 +258,7 @@ class StorageMonitorServiceImpl @Inject constructor(
             0L
         }
     }
-    
-    /**
-     * Gets the size of a directory
-     */
+
     private fun getDirSize(dir: File): Long {
         return try {
             dir.walkTopDown().filter { it.isFile }.map { it.length() }.sum()
@@ -312,21 +266,15 @@ class StorageMonitorServiceImpl @Inject constructor(
             0L
         }
     }
-    
-    /**
-     * Gets the size of the cache directory
-     */
+
     private fun getCacheSize(): Long {
         return getDirSize(context.cacheDir)
     }
-    
-    /**
-     * Gets the size of old downloads (placeholder implementation)
-     */
+
     private fun getOldDownloadsSize(): Long {
         return try {
             val downloadsDir = fileManagerService.getDownloadsDirectory()
-            val cutoffTime = System.currentTimeMillis() - 30 * 24 * 60 * 60 * 1000L // 30 days ago
+            val cutoffTime = System.currentTimeMillis() - 30 * 24 * 60 * 60 * 1000L
             
             downloadsDir.walkTopDown()
                 .filter { it.isFile && it.lastModified() < cutoffTime }
@@ -338,10 +286,7 @@ class StorageMonitorServiceImpl @Inject constructor(
             0L
         }
     }
-    
-    /**
-     * Formats bytes to human-readable string
-     */
+
     private fun formatBytes(bytes: Long): String {
         val units = arrayOf("B", "KB", "MB", "GB")
         var size = bytes.toDouble()
@@ -356,9 +301,6 @@ class StorageMonitorServiceImpl @Inject constructor(
     }
 }
 
-/**
- * Data class representing storage information
- */
 data class StorageInfo(
     val totalBytes: Long,
     val availableBytes: Long,
@@ -368,9 +310,6 @@ data class StorageInfo(
     val path: String
 )
 
-/**
- * Enum representing storage status levels
- */
 enum class StorageStatus {
     NORMAL,
     LOW,
@@ -378,18 +317,12 @@ enum class StorageStatus {
     ERROR
 }
 
-/**
- * Data class representing a cleanup recommendation
- */
 data class CleanupRecommendation(
     val type: CleanupType,
     val description: String,
     val estimatedSpaceSaved: Long
 )
 
-/**
- * Enum representing types of cleanup actions
- */
 enum class CleanupType {
     CLEAR_CACHE,
     DELETE_OLD_DOWNLOADS,
@@ -397,9 +330,6 @@ enum class CleanupType {
     DELETE_TEMP_FILES
 }
 
-/**
- * Data class representing the result of a cleanup operation
- */
 data class CleanupResult(
     val success: Boolean,
     val spaceFreed: Long,

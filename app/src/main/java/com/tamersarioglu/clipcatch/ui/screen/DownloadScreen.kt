@@ -56,9 +56,6 @@ import com.tamersarioglu.clipcatch.ui.components.UrlInputField
 import com.tamersarioglu.clipcatch.ui.viewmodel.DownloadViewModel
 import java.io.File
 
-/**
- * Main download screen composable that integrates all UI components
- */
 @Composable
 fun DownloadScreen(
     modifier: Modifier = Modifier,
@@ -67,31 +64,21 @@ fun DownloadScreen(
     val uiState by viewModel.uiState.collectAsState()
     val configuration = LocalConfiguration.current
     val snackbarHostState = remember { SnackbarHostState() }
-    
-    // Determine if we're in landscape mode or on a large screen
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val isLargeScreen = configuration.screenWidthDp >= 600
-    
-    // Permission launcher for storage access
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         val allGranted = permissions.values.all { it }
         if (allGranted) {
             viewModel.downloadVideo()
-        } else {
-            // Handle permission denied case
-            // Could show a dialog explaining why permissions are needed
         }
     }
-    
-    // Show snackbar for errors
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let { message ->
             snackbarHostState.showSnackbar(message)
         }
     }
-    
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier.fillMaxSize()
@@ -112,7 +99,6 @@ fun DownloadScreen(
                 if (isLandscape) 12.dp else 16.dp
             )
         ) {
-            // App title and description
             Text(
                 text = "ClipCatch",
                 style = MaterialTheme.typography.headlineMedium,
@@ -125,7 +111,6 @@ fun DownloadScreen(
                         contentDescription = "ClipCatch app title"
                     }
             )
-            
             Text(
                 text = "Download YouTube videos directly to your device",
                 style = MaterialTheme.typography.bodyLarge,
@@ -137,10 +122,7 @@ fun DownloadScreen(
                         contentDescription = "App description: Download YouTube videos directly to your device"
                     }
             )
-            
             Spacer(modifier = Modifier.height(if (isLandscape) 4.dp else 8.dp))
-            
-            // URL input field
             UrlInputField(
                 url = uiState.url,
                 onUrlChange = viewModel::onUrlChanged,
@@ -150,8 +132,6 @@ fun DownloadScreen(
                 enabled = !uiState.isDownloading,
                 modifier = Modifier.fillMaxWidth()
             )
-            
-            // Video info card (shown when URL is valid and video info is loaded)
             uiState.videoInfo?.let { videoInfo ->
                 VideoInfoCard(
                     videoInfo = videoInfo,
@@ -159,11 +139,8 @@ fun DownloadScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
-            
-            // Download button
             DownloadButton(
                 onClick = {
-                    // Check and request permissions before downloading
                     val permissions = getRequiredPermissions()
                     if (permissions.isNotEmpty()) {
                         permissionLauncher.launch(permissions.toTypedArray())
@@ -175,8 +152,6 @@ fun DownloadScreen(
                 isLoading = uiState.isDownloading,
                 modifier = Modifier.fillMaxWidth()
             )
-            
-            // Progress indicator (shown during download)
             if (uiState.isDownloading || uiState.downloadProgress > 0) {
                 ProgressIndicator(
                     progress = uiState.downloadProgress,
@@ -185,8 +160,6 @@ fun DownloadScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
-            
-            // Success message (shown when download completes)
             if (uiState.isDownloadComplete) {
                 StatusMessage(
                     message = "Video downloaded successfully!",
@@ -194,8 +167,6 @@ fun DownloadScreen(
                     isVisible = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                
-                // Action buttons for completed download
                 uiState.downloadedFilePath?.let { filePath ->
                     DownloadCompleteActions(
                         filePath = filePath,
@@ -204,8 +175,6 @@ fun DownloadScreen(
                     )
                 }
             }
-            
-            // Error message (shown when there's an error)
             if (uiState.hasError) {
                 uiState.displayErrorMessage?.let { errorMessage ->
                     StatusMessage(
@@ -218,8 +187,6 @@ fun DownloadScreen(
                     )
                 }
             }
-            
-            // Cancel button (shown during download)
             if (uiState.isDownloading) {
                 OutlinedButton(
                     onClick = viewModel::cancelDownload,
@@ -236,9 +203,6 @@ fun DownloadScreen(
     }
 }
 
-/**
- * Video information card component
- */
 @Composable
 private fun VideoInfoCard(
     videoInfo: com.tamersarioglu.clipcatch.domain.model.VideoInfo,
@@ -262,7 +226,6 @@ private fun VideoInfoCard(
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.primary
             )
-            
             Text(
                 text = videoInfo.title,
                 style = MaterialTheme.typography.bodyLarge,
@@ -271,7 +234,6 @@ private fun VideoInfoCard(
                     contentDescription = "Video title: ${videoInfo.title}"
                 }
             )
-            
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
@@ -284,7 +246,6 @@ private fun VideoInfoCard(
                         contentDescription = "Video duration: ${formatDuration(videoInfo.duration)}"
                     }
                 )
-                
                 videoInfo.fileSize?.let { size ->
                     Text(
                         text = "Size: ${formatFileSize(size)}",
@@ -300,9 +261,6 @@ private fun VideoInfoCard(
     }
 }
 
-/**
- * Actions available after download completion
- */
 @Composable
 private fun DownloadCompleteActions(
     filePath: String,
@@ -310,12 +268,10 @@ private fun DownloadCompleteActions(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // Open file button
         OutlinedButton(
             onClick = {
                 try {
@@ -332,11 +288,9 @@ private fun DownloadCompleteActions(
                         }
                         context.startActivity(Intent.createChooser(intent, "Open video with"))
                     } else {
-                        // File doesn't exist - show error
                         Toast.makeText(context, "File not found", Toast.LENGTH_SHORT).show()
                     }
                 } catch (e: Exception) {
-                    // Handle error - show toast with error message
                     Toast.makeText(context, "Error opening file: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             },
@@ -353,27 +307,20 @@ private fun DownloadCompleteActions(
             Spacer(modifier = Modifier.width(4.dp))
             Text("Open")
         }
-        
-        // Show in folder button
         OutlinedButton(
             onClick = {
                 try {
                     val file = File(filePath)
                     val parentFile = file.parentFile
-                    
                     if (parentFile != null && parentFile.exists()) {
-                        // Try to open with file manager using MediaStore
                         val intent = Intent(Intent.ACTION_VIEW).apply {
-                            // Use the Downloads directory URI
                             val uri = Uri.parse("content://com.android.externalstorage.documents/document/primary%3ADownload")
                             setDataAndType(uri, "vnd.android.document/directory")
                             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         }
-                        
                         try {
                             context.startActivity(intent)
                         } catch (e: Exception) {
-                            // Fallback: try to open Downloads folder with generic intent
                             val fallbackIntent = Intent(Intent.ACTION_VIEW).apply {
                                 type = "resource/folder"
                                 putExtra("org.openintents.extra.ABSOLUTE_PATH", parentFile.absolutePath)
@@ -384,7 +331,6 @@ private fun DownloadCompleteActions(
                         Toast.makeText(context, "Folder not found", Toast.LENGTH_SHORT).show()
                     }
                 } catch (e: Exception) {
-                    // Handle error - show toast with error message
                     Toast.makeText(context, "Error opening folder: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             },
@@ -402,10 +348,7 @@ private fun DownloadCompleteActions(
             Text("Folder")
         }
     }
-    
     Spacer(modifier = Modifier.height(8.dp))
-    
-    // New download button
     TextButton(
         onClick = onNewDownload,
         modifier = Modifier
@@ -418,9 +361,6 @@ private fun DownloadCompleteActions(
     }
 }
 
-/**
- * Get required permissions based on Android version
- */
 private fun getRequiredPermissions(): List<String> {
     return when {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
@@ -430,7 +370,6 @@ private fun getRequiredPermissions(): List<String> {
             )
         }
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
-            // Android 10+ uses scoped storage, no explicit permissions needed
             emptyList()
         }
         else -> {
@@ -442,28 +381,20 @@ private fun getRequiredPermissions(): List<String> {
     }
 }
 
-/**
- * Format duration in seconds to human-readable format
- */
 private fun formatDuration(seconds: Long): String {
     val hours = seconds / 3600
     val minutes = (seconds % 3600) / 60
     val secs = seconds % 60
-    
     return when {
         hours > 0 -> String.format("%d:%02d:%02d", hours, minutes, secs)
         else -> String.format("%d:%02d", minutes, secs)
     }
 }
 
-/**
- * Format file size in bytes to human-readable format
- */
 private fun formatFileSize(bytes: Long): String {
     val kb = bytes / 1024.0
     val mb = kb / 1024.0
     val gb = mb / 1024.0
-    
     return when {
         gb >= 1 -> String.format("%.1f GB", gb)
         mb >= 1 -> String.format("%.1f MB", mb)

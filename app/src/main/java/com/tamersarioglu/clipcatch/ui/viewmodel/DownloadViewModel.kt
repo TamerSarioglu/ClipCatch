@@ -89,7 +89,6 @@ constructor(
                             canStartDownload = validationResult.isValid && !_uiState.value.isDownloading
                     )
 
-            // If URL is valid, extract video info
             if (validationResult.isValid && validationResult.sanitizedUrl != null) {
                 extractVideoInfo(validationResult.sanitizedUrl)
             } else {

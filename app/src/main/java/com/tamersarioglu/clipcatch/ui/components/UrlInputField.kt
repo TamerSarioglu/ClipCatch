@@ -20,19 +20,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
 
-/**
- * URL input field component with validation feedback
- * 
- * @param url Current URL value
- * @param onUrlChange Callback when URL changes
- * @param isValid Whether the current URL is valid
- * @param errorMessage Error message to display, null if no error
- * @param isValidating Whether URL validation is in progress
- * @param enabled Whether the field is enabled for input
- * @param modifier Modifier for styling
- */
+
 @Composable
 fun UrlInputField(
     url: String,

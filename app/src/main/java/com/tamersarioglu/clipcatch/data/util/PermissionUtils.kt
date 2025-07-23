@@ -8,15 +8,9 @@ import androidx.core.content.ContextCompat
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Utility class for handling app permissions
- */
 @Singleton
 class PermissionUtils @Inject constructor() {
     
-    /**
-     * Get required permissions based on Android version
-     */
     fun getRequiredPermissions(): Array<String> {
         return when {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
@@ -26,7 +20,6 @@ class PermissionUtils @Inject constructor() {
                 )
             }
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
-                // Android 10+ uses scoped storage, no explicit permissions needed for Downloads folder
                 emptyArray()
             }
             else -> {
@@ -38,30 +31,20 @@ class PermissionUtils @Inject constructor() {
         }
     }
     
-    /**
-     * Check if all required permissions are granted
-     */
     fun hasAllRequiredPermissions(context: Context): Boolean {
         val requiredPermissions = getRequiredPermissions()
         if (requiredPermissions.isEmpty()) {
             return true
         }
-        
         return requiredPermissions.all { permission ->
             ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
         }
     }
     
-    /**
-     * Check if a specific permission is granted
-     */
     fun hasPermission(context: Context, permission: String): Boolean {
         return ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
     }
     
-    /**
-     * Get permissions that are not yet granted
-     */
     fun getMissingPermissions(context: Context): Array<String> {
         val requiredPermissions = getRequiredPermissions()
         return requiredPermissions.filter { permission ->
@@ -69,9 +52,6 @@ class PermissionUtils @Inject constructor() {
         }.toTypedArray()
     }
     
-    /**
-     * Get user-friendly explanation for why permissions are needed
-     */
     fun getPermissionExplanation(permission: String): String {
         return when (permission) {
             Manifest.permission.WRITE_EXTERNAL_STORAGE -> 
@@ -86,9 +66,6 @@ class PermissionUtils @Inject constructor() {
         }
     }
     
-    /**
-     * Get general explanation for all required permissions
-     */
     fun getGeneralPermissionExplanation(): String {
         return when {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
@@ -106,9 +83,6 @@ class PermissionUtils @Inject constructor() {
         }
     }
     
-    /**
-     * Check if we should show rationale for permission request
-     */
     fun shouldShowRationale(context: Context, permission: String): Boolean {
         return if (context is androidx.activity.ComponentActivity) {
             androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale(context, permission)
@@ -117,9 +91,6 @@ class PermissionUtils @Inject constructor() {
         }
     }
     
-    /**
-     * Get critical permissions that are absolutely required for core functionality
-     */
     fun getCriticalPermissions(): Array<String> {
         return when {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
@@ -134,15 +105,11 @@ class PermissionUtils @Inject constructor() {
         }
     }
     
-    /**
-     * Check if critical permissions are granted
-     */
     fun hasCriticalPermissions(context: Context): Boolean {
         val criticalPermissions = getCriticalPermissions()
         if (criticalPermissions.isEmpty()) {
             return true
         }
-        
         return criticalPermissions.all { permission ->
             hasPermission(context, permission)
         }

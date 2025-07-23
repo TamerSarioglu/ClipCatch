@@ -148,7 +148,6 @@ class DownloadManagerServiceImpl @Inject constructor(
             ))
             
         } finally {
-            // Clean up resources
             performCleanup(url)
         }
     }
@@ -158,7 +157,6 @@ class DownloadManagerServiceImpl @Inject constructor(
             return false
         }
         
-        // Mark for cancellation
         cancellationRequests[url] = true
         return true
     }

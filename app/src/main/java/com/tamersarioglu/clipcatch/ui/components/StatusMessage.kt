@@ -29,9 +29,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
-/**
- * Status message types
- */
+
 enum class StatusMessageType {
     SUCCESS,
     ERROR,
@@ -39,16 +37,6 @@ enum class StatusMessageType {
     INFO
 }
 
-/**
- * Status message component for success/error display
- * 
- * @param message The message to display
- * @param type The type of status message (success, error, warning, info)
- * @param isVisible Whether the message should be visible
- * @param actionText Optional action button text
- * @param onActionClick Optional action button click handler
- * @param modifier Modifier for styling
- */
 @Composable
 fun StatusMessage(
     message: String,
@@ -133,7 +121,6 @@ fun StatusMessage(
                     }
                 )
                 
-                // Action button if provided
                 if (actionText != null && onActionClick != null) {
                     TextButton(
                         onClick = onActionClick,
@@ -156,9 +143,6 @@ fun StatusMessage(
     }
 }
 
-/**
- * Helper data class for tuple of 4 elements
- */
 private data class Tuple4<A, B, C, D>(
     val first: A,
     val second: B,

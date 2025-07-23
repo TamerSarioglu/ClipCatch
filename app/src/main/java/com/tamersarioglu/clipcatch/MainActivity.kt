@@ -31,13 +31,8 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
-        // Enable edge-to-edge display
         enableEdgeToEdge()
-        
-        // Configure window for better immersive experience
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        
         setContent {
             ClipCatchTheme {
                 MainContent()
@@ -51,13 +46,9 @@ private fun MainContent() {
     val viewModel: DownloadViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsState()
     val configuration = LocalConfiguration.current
-    
-    // Handle back navigation
     BackHandler(enabled = uiState.isDownloading) {
-        // If download is in progress, cancel download
         viewModel.cancelDownload()
     }
-    
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -65,9 +56,7 @@ private fun MainContent() {
         Scaffold(
             modifier = Modifier.fillMaxSize()
         ) { paddingValues ->
-            // Responsive layout based on screen size
             when {
-                // Tablet landscape or large screens
                 configuration.screenWidthDp >= 840 -> {
                     Box(
                         modifier = Modifier
@@ -82,7 +71,6 @@ private fun MainContent() {
                         )
                     }
                 }
-                // Phone landscape
                 configuration.orientation == Configuration.ORIENTATION_LANDSCAPE -> {
                     DownloadScreen(
                         modifier = Modifier
@@ -91,7 +79,6 @@ private fun MainContent() {
                             .padding(horizontal = 32.dp)
                     )
                 }
-                // Phone portrait (default)
                 else -> {
                     DownloadScreen(
                         modifier = Modifier

@@ -6,15 +6,8 @@ import com.tamersarioglu.clipcatch.domain.model.DownloadProgress
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Mapper class for converting between DownloadProgress domain model and DownloadProgressDto
- */
 @Singleton
 class DownloadProgressMapper @Inject constructor() {
-    
-    /**
-     * Maps DownloadProgressDto to DownloadProgress domain model
-     */
     fun mapToDomain(dto: DownloadProgressDto): DownloadProgress {
         return when (dto) {
             is DownloadProgressDto.Progress -> DownloadProgress.Progress(dto.percentage)
@@ -22,10 +15,6 @@ class DownloadProgressMapper @Inject constructor() {
             is DownloadProgressDto.Error -> DownloadProgress.Error(mapDownloadError(dto.errorType))
         }
     }
-    
-    /**
-     * Maps DownloadProgress domain model to DownloadProgressDto
-     */
     fun mapToDto(domain: DownloadProgress): DownloadProgressDto {
         return when (domain) {
             is DownloadProgress.Progress -> DownloadProgressDto.Progress(domain.percentage)
@@ -36,10 +25,6 @@ class DownloadProgressMapper @Inject constructor() {
             )
         }
     }
-    
-    /**
-     * Maps string error type to DownloadError enum with fallback to UNKNOWN_ERROR
-     */
     private fun mapDownloadError(errorType: String?): DownloadError {
         return when (errorType?.uppercase()) {
             "INVALID_URL" -> DownloadError.INVALID_URL
@@ -53,10 +38,6 @@ class DownloadProgressMapper @Inject constructor() {
             else -> DownloadError.UNKNOWN_ERROR
         }
     }
-    
-    /**
-     * Gets user-friendly error message for DownloadError
-     */
     private fun getErrorMessage(error: DownloadError): String {
         return when (error) {
             DownloadError.INVALID_URL -> "The provided URL is not a valid YouTube URL"

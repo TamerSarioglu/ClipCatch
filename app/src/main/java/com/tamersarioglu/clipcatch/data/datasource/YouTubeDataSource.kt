@@ -10,30 +10,11 @@ import java.net.UnknownHostException
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Interface for YouTube data operations
- */
 interface YouTubeDataSource {
-    
-    /**
-     * Extracts video information from a YouTube URL
-     * @param url The YouTube URL to extract information from
-     * @return VideoInfoDto containing the video information
-     * @throws Exception if the URL is invalid or video information cannot be extracted
-     */
     suspend fun getVideoInfo(url: String): VideoInfoDto
-    
-    /**
-     * Validates if the provided URL is a valid YouTube URL
-     * @param url The URL to validate
-     * @return true if the URL is a valid YouTube URL, false otherwise
-     */
     fun validateYouTubeUrl(url: String): Boolean
 }
 
-/**
- * Implementation of YouTubeDataSource using YouTubeExtractorService
- */
 @Singleton
 class YouTubeDataSourceImpl @Inject constructor(
     private val youTubeExtractorService: YouTubeExtractorService

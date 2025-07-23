@@ -18,7 +18,6 @@ class VideoInfoMapperTest {
     
     @Test
     fun `mapToDomain should convert VideoInfoDto to VideoInfo correctly`() {
-        // Given
         val dto = VideoInfoDto(
             id = "test123",
             title = "Test Video",
@@ -28,11 +27,7 @@ class VideoInfoMapperTest {
             fileSize = 1024L,
             format = "mp4"
         )
-        
-        // When
         val result = mapper.mapToDomain(dto)
-        
-        // Then
         assertEquals("test123", result.id)
         assertEquals("Test Video", result.title)
         assertEquals("https://example.com/video.mp4", result.downloadUrl)
@@ -44,7 +39,6 @@ class VideoInfoMapperTest {
     
     @Test
     fun `mapToDomain should handle null values correctly`() {
-        // Given
         val dto = VideoInfoDto(
             id = "test123",
             title = "Test Video",
@@ -54,11 +48,7 @@ class VideoInfoMapperTest {
             fileSize = null,
             format = "webm"
         )
-        
-        // When
         val result = mapper.mapToDomain(dto)
-        
-        // Then
         assertEquals(null, result.thumbnailUrl)
         assertEquals(null, result.fileSize)
         assertEquals(VideoFormat.WEBM, result.format)
@@ -66,7 +56,6 @@ class VideoInfoMapperTest {
     
     @Test
     fun `mapToDomain should default to MP4 for unknown format`() {
-        // Given
         val dto = VideoInfoDto(
             id = "test123",
             title = "Test Video",
@@ -74,17 +63,12 @@ class VideoInfoMapperTest {
             duration = 300L,
             format = "unknown_format"
         )
-        
-        // When
         val result = mapper.mapToDomain(dto)
-        
-        // Then
         assertEquals(VideoFormat.MP4, result.format)
     }
     
     @Test
     fun `mapToDto should convert VideoInfo to VideoInfoDto correctly`() {
-        // Given
         val domain = VideoInfo(
             id = "test123",
             title = "Test Video",
@@ -94,11 +78,7 @@ class VideoInfoMapperTest {
             fileSize = 1024L,
             format = VideoFormat.MKV
         )
-        
-        // When
         val result = mapper.mapToDto(domain)
-        
-        // Then
         assertEquals("test123", result.id)
         assertEquals("Test Video", result.title)
         assertEquals("https://example.com/video.mp4", result.downloadUrl)
@@ -110,7 +90,6 @@ class VideoInfoMapperTest {
     
     @Test
     fun `mapToDto should handle null values correctly`() {
-        // Given
         val domain = VideoInfo(
             id = "test123",
             title = "Test Video",
@@ -120,11 +99,7 @@ class VideoInfoMapperTest {
             fileSize = null,
             format = VideoFormat.WEBM
         )
-        
-        // When
         val result = mapper.mapToDto(domain)
-        
-        // Then
         assertEquals(null, result.thumbnailUrl)
         assertEquals(null, result.fileSize)
         assertEquals("webm", result.format)
@@ -132,7 +107,6 @@ class VideoInfoMapperTest {
     
     @Test
     fun `mapping should be bidirectional`() {
-        // Given
         val originalDomain = VideoInfo(
             id = "test123",
             title = "Test Video",
@@ -142,12 +116,8 @@ class VideoInfoMapperTest {
             fileSize = 1024L,
             format = VideoFormat.MP4
         )
-        
-        // When
         val dto = mapper.mapToDto(originalDomain)
         val resultDomain = mapper.mapToDomain(dto)
-        
-        // Then
         assertEquals(originalDomain, resultDomain)
     }
 }

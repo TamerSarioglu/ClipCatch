@@ -11,7 +11,6 @@ import kotlin.random.Random
 class RetryUtils @Inject constructor(
     private val logger: Logger
 ) {
-    
     companion object {
         private const val TAG = "RetryUtils"
         private const val DEFAULT_MAX_ATTEMPTS = 3
@@ -20,7 +19,6 @@ class RetryUtils @Inject constructor(
         private const val DEFAULT_BACKOFF_MULTIPLIER = 2.0
         private const val DEFAULT_JITTER_FACTOR = 0.1
     }
-    
     suspend fun <T> executeWithRetry(
         maxAttempts: Int = DEFAULT_MAX_ATTEMPTS,
         baseDelayMs: Long = DEFAULT_BASE_DELAY_MS,
@@ -31,7 +29,6 @@ class RetryUtils @Inject constructor(
         operation: suspend (attempt: Int) -> T
     ): T {
         var lastException: Throwable? = null
-        
         repeat(maxAttempts) { attempt ->
             try {
                 logger.d(TAG, "Executing operation, attempt ${attempt + 1}/$maxAttempts")
@@ -39,20 +36,14 @@ class RetryUtils @Inject constructor(
             } catch (e: Exception) {
                 lastException = e
                 logger.w(TAG, "Operation failed on attempt ${attempt + 1}/$maxAttempts", e)
-                
-                // Check if we should retry this exception
                 if (!retryCondition(e)) {
                     logger.i(TAG, "Exception is not retryable, failing immediately")
                     throw e
                 }
-                
-                // If this is the last attempt, don't delay
                 if (attempt == maxAttempts - 1) {
                     logger.w(TAG, "Max attempts reached, failing")
                     throw e
                 }
-                
-                // Calculate delay with exponential backoff and jitter
                 val delay = calculateDelay(
                     attempt = attempt,
                     baseDelayMs = baseDelayMs,
@@ -60,16 +51,12 @@ class RetryUtils @Inject constructor(
                     backoffMultiplier = backoffMultiplier,
                     jitterFactor = jitterFactor
                 )
-                
                 logger.d(TAG, "Waiting ${delay}ms before retry")
                 delay(delay)
             }
         }
-        
-        // If we get here, all attempts failed
         throw lastException ?: RuntimeException("All retry attempts failed")
     }
-    
     suspend fun <T> executeWithLinearRetry(
         maxAttempts: Int = DEFAULT_MAX_ATTEMPTS,
         delayMs: Long = DEFAULT_BASE_DELAY_MS,
@@ -86,7 +73,6 @@ class RetryUtils @Inject constructor(
             operation = operation
         )
     }
-    
     suspend fun <T> executeWithImmediateRetry(
         maxAttempts: Int = DEFAULT_MAX_ATTEMPTS,
         retryCondition: (Throwable) -> Boolean = ::isRetryableException,
@@ -102,7 +88,6 @@ class RetryUtils @Inject constructor(
             operation = operation
         )
     }
-    
     private fun calculateDelay(
         attempt: Int,
         baseDelayMs: Long,
@@ -115,7 +100,6 @@ class RetryUtils @Inject constructor(
         val jitter = cappedDelay * jitterFactor * (Random.nextDouble() - 0.5) * 2
         return (cappedDelay + jitter).toLong().coerceAtLeast(0L)
     }
-    
     private fun isRetryableException(exception: Throwable): Boolean {
         return when (exception) {
             is java.net.SocketTimeoutException -> true
@@ -144,13 +128,11 @@ class RetryUtils @Inject constructor(
             else -> false
         }
     }
-    
     fun createRetryCondition(vararg retryableExceptions: Class<out Throwable>): (Throwable) -> Boolean {
         return { exception ->
             retryableExceptions.any { it.isInstance(exception) }
         }
     }
-    
     fun createMessageBasedRetryCondition(vararg retryableMessages: String): (Throwable) -> Boolean {
         return { exception ->
             val message = exception.message?.lowercase() ?: ""
@@ -159,7 +141,6 @@ class RetryUtils @Inject constructor(
             }
         }
     }
-    
     fun combineRetryConditions(
         vararg conditions: (Throwable) -> Boolean
     ): (Throwable) -> Boolean {

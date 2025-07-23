@@ -21,15 +21,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 
-/**
- * Download button component with loading and disabled states
- * 
- * @param onClick Callback when button is clicked
- * @param enabled Whether the button is enabled
- * @param isLoading Whether the button should show loading state
- * @param text Button text to display
- * @param modifier Modifier for styling
- */
+
 @Composable
 fun DownloadButton(
     onClick: () -> Unit,

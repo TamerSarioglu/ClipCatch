@@ -13,10 +13,6 @@ import java.util.regex.Pattern
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Simple YouTube extractor that uses HTTP requests to get basic video information
- * This is a fallback when the full YouTube-DL library fails to initialize
- */
 @Singleton
 class SimpleYouTubeExtractorService @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -26,7 +22,6 @@ class SimpleYouTubeExtractorService @Inject constructor(
     companion object {
         private const val TAG = "SimpleYouTubeExtractor"
         
-        // YouTube URL patterns
         private val YOUTUBE_URL_PATTERNS = listOf(
             Pattern.compile("^https?://(www\\.)?youtube\\.com/watch\\?v=([a-zA-Z0-9_-]+).*$"),
             Pattern.compile("^https?://(www\\.)?youtu\\.be/([a-zA-Z0-9_-]+).*$"),
@@ -34,17 +29,12 @@ class SimpleYouTubeExtractorService @Inject constructor(
             Pattern.compile("^https?://(m\\.)?youtube\\.com/watch\\?v=([a-zA-Z0-9_-]+).*$")
         )
         
-        // Regex patterns for extracting video information from HTML
         private val TITLE_PATTERN = Pattern.compile("<title>([^<]+)</title>", Pattern.CASE_INSENSITIVE)
         private val VIDEO_ID_PATTERN = Pattern.compile("\"videoId\":\"([^\"]+)\"")
         private val DURATION_PATTERN = Pattern.compile("\"lengthSeconds\":\"([^\"]+)\"")
         private val THUMBNAIL_PATTERN = Pattern.compile("\"thumbnail\":\\{\"thumbnails\":\\[\\{\"url\":\"([^\"]+)\"")
     }
-    
-    /**
-     * Extracts basic video information using HTTP requests
-     * This is a simpler approach that doesn't require the full YouTube-DL library
-     */
+
     suspend fun extractVideoInfo(url: String): VideoInfoDto = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "Extracting video info using simple HTTP approach for: $url")
@@ -63,19 +53,11 @@ class SimpleYouTubeExtractorService @Inject constructor(
                 )
             
             Log.d(TAG, "Extracted video ID: $videoId")
-            
-            // Fetch the YouTube page HTML
             val htmlContent = fetchYouTubePageContent(url)
-            
-            // Extract video information from HTML
             val title = extractTitle(htmlContent) ?: "YouTube Video $videoId"
             val duration = extractDuration(htmlContent) ?: 0L
             val thumbnailUrl = extractThumbnail(htmlContent, videoId)
-            
             Log.d(TAG, "Extracted video info - Title: $title, Duration: $duration")
-            
-            // Mark this as a simple extraction that can't provide actual download URLs
-            // The download URL will be a placeholder to indicate this limitation
             val downloadUrl = "SIMPLE_EXTRACTOR_PLACEHOLDER:$videoId"
             
             return@withContext VideoInfoDto(
@@ -118,7 +100,7 @@ class SimpleYouTubeExtractorService @Inject constructor(
         return null
     }
     
-    private suspend fun fetchYouTubePageContent(url: String): String {
+    private fun fetchYouTubePageContent(url: String): String {
         val request = Request.Builder()
             .url(url)
             .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
@@ -143,7 +125,6 @@ class SimpleYouTubeExtractorService @Inject constructor(
         val matcher = TITLE_PATTERN.matcher(htmlContent)
         if (matcher.find()) {
             val title = matcher.group(1)?.trim()
-            // Clean up the title by removing " - YouTube" suffix
             return title?.replace(" - YouTube", "")?.trim()
         }
         return null
@@ -167,14 +148,10 @@ class SimpleYouTubeExtractorService @Inject constructor(
         if (matcher.find()) {
             return matcher.group(1)?.replace("\\u0026", "&")
         }
-        // Fallback to standard YouTube thumbnail URL
         return "https://img.youtube.com/vi/$videoId/maxresdefault.jpg"
     }
 }
 
-/**
- * Exception for simple YouTube extraction operations
- */
 class SimpleYouTubeExtractionException(
     val error: DownloadError,
     message: String,

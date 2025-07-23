@@ -4,9 +4,6 @@ package com.tamersarioglu.clipcatch.domain.model
  * Sealed class representing the different states of a download operation
  */
 sealed class DownloadProgress {
-    /**
-     * Download is in progress with a specific percentage
-     */
     data class Progress(val percentage: Int) : DownloadProgress()
     
     /**

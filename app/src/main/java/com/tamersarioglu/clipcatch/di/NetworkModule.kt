@@ -93,20 +93,14 @@ object NetworkModule {
             val request = chain.request()
             try {
                 val response = chain.proceed(request)
-                
-                // Log response details
                 Log.d("NetworkModule", "Response for ${request.url}: ${response.code}")
-                
                 if (!response.isSuccessful) {
                     Log.e("NetworkModule", "HTTP Error: ${response.code} - ${response.message}")
-                    
-                    // Convert HTTP errors to appropriate NetworkExceptions
                     when (response.code) {
                         in 400..499 -> throw NetworkException.ClientException(response.code, response.message)
                         in 500..599 -> throw NetworkException.ServerException(response.code, response.message)
                     }
                 }
-                
                 response
             } catch (e: Exception) {
                 Log.e("NetworkModule", "Network request failed", e)
@@ -123,44 +117,33 @@ object NetworkModule {
             val request = chain.request()
             var response: Response? = null
             var exception: IOException? = null
-            
-            // Retry logic with exponential backoff
             val maxRetries = 3
             var retryCount = 0
-            
             while (retryCount < maxRetries) {
                 try {
-                    response?.close() // Close previous response if exists
+                    response?.close()
                     response = chain.proceed(request)
-                    
                     if (response.isSuccessful) {
                         return@Interceptor response
                     }
-                    
-                    // Only retry on server errors (5xx) or specific client errors
                     if (response.code in 500..599 || response.code == 429) {
                         Log.w("NetworkModule", "Retrying request due to ${response.code}, attempt ${retryCount + 1}")
                         retryCount++
                         if (retryCount < maxRetries) {
-                            Thread.sleep(1000L * retryCount) // Exponential backoff
+                            Thread.sleep(1000L * retryCount)
                             continue
                         }
                     }
-                    
                     return@Interceptor response
-                    
                 } catch (e: Exception) {
                     Log.w("NetworkModule", "Network error on attempt ${retryCount + 1}", e)
                     exception = e.toNetworkException()
                     retryCount++
-                    
                     if (retryCount < maxRetries) {
-                        Thread.sleep(1000L * retryCount) // Exponential backoff
+                        Thread.sleep(1000L * retryCount)
                     }
                 }
             }
-            
-            // If we've exhausted retries, throw the last exception or return the last response
             exception?.let { throw it }
             response ?: throw NetworkException.GenericNetworkException("Failed to get response after $maxRetries attempts")
         }
@@ -176,9 +159,9 @@ object NetworkModule {
     ): OkHttpClient {
         return OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS) // Longer read timeout for video downloads
+            .readTimeout(60, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)
-            .callTimeout(120, TimeUnit.SECONDS) // Overall call timeout
+            .callTimeout(120, TimeUnit.SECONDS)
             .addInterceptor(networkConnectionInterceptor)
             .addInterceptor(errorHandlingInterceptor)
             .addInterceptor(retryInterceptor)
@@ -194,7 +177,7 @@ object NetworkModule {
         json: Json
     ): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("https://www.youtube.com/") // Base URL for YouTube API calls
+            .baseUrl("https://www.youtube.com/")
             .client(okHttpClient)
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()

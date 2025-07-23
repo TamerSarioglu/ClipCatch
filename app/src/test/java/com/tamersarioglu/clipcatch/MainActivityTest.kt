@@ -32,11 +32,8 @@ class MainActivityTest {
     fun mainActivity_displaysAppTitle() {
         composeTestRule.setContent {
             ClipCatchTheme {
-                // Test that the app title is displayed
             }
         }
-        
-        // Verify that the main components are present
         composeTestRule.onNodeWithText("ClipCatch").assertExists()
         composeTestRule.onNodeWithText("Download YouTube videos directly to your device").assertExists()
     }
@@ -45,11 +42,8 @@ class MainActivityTest {
     fun mainActivity_displaysUrlInputField() {
         composeTestRule.setContent {
             ClipCatchTheme {
-                // Test that URL input field is displayed
             }
         }
-        
-        // Verify URL input field is present
         composeTestRule.onNodeWithContentDescription("YouTube URL input field").assertExists()
     }
     
@@ -57,11 +51,8 @@ class MainActivityTest {
     fun mainActivity_displaysDownloadButton() {
         composeTestRule.setContent {
             ClipCatchTheme {
-                // Test that download button is displayed
             }
         }
-        
-        // Verify download button is present
         composeTestRule.onNodeWithContentDescription("Download video button").assertExists()
     }
 }

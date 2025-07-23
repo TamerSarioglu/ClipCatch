@@ -9,24 +9,11 @@ import java.net.UnknownHostException
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Interface for download operations
- */
+
 interface DownloadDataSource {
-    
-    /**
-     * Downloads a video from the given URL and provides progress updates
-     * @param url The direct download URL for the video
-     * @param fileName The desired file name for the downloaded video
-     * @return Flow of DownloadProgressDto representing the download progress
-     */
     suspend fun downloadVideo(url: String, fileName: String): Flow<DownloadProgressDto>
 }
 
-/**
- * Implementation of DownloadDataSource
- * This is a placeholder implementation that will be replaced with actual download logic
- */
 @Singleton
 class DownloadDataSourceImpl @Inject constructor() : DownloadDataSource {
     
@@ -100,20 +87,13 @@ class DownloadDataSourceImpl @Inject constructor() : DownloadDataSource {
             }
         }
     }
-    
-    /**
-     * Checks if the URL is accessible (placeholder implementation)
-     */
+
     private fun isUrlAccessible(url: String): Boolean {
-        // TODO: Implement actual URL accessibility check
-        // For now, assume all non-empty URLs are accessible
+
         return url.isNotBlank()
     }
 }
 
-/**
- * Custom exception for download operations
- */
 class DownloadDataException(
     val error: DownloadError,
     message: String,

@@ -1,8 +1,5 @@
 package com.tamersarioglu.clipcatch.domain.model
 
-/**
- * Domain model representing video information extracted from YouTube
- */
 data class VideoInfo(
     val id: String,
     val title: String,

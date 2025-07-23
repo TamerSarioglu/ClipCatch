@@ -26,9 +26,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
-/**
- * Dialog for explaining permission requirements to users
- */
 @Composable
 fun PermissionDialog(
     isVisible: Boolean,
@@ -93,9 +90,6 @@ fun PermissionDialog(
     }
 }
 
-/**
- * Dialog for when permissions are permanently denied
- */
 @Composable
 fun PermissionDeniedDialog(
     isVisible: Boolean,
@@ -135,9 +129,7 @@ fun PermissionDeniedDialog(
                             contentDescription = "Permission denied explanation: $message"
                         }
                     )
-                    
                     Spacer(modifier = Modifier.height(8.dp))
-                    
                     Text(
                         text = "To enable this feature, please go to Settings and grant the required permissions.",
                         style = MaterialTheme.typography.bodySmall,
@@ -173,9 +165,6 @@ fun PermissionDeniedDialog(
     }
 }
 
-/**
- * Informational dialog about storage permissions
- */
 @Composable
 fun StoragePermissionInfoDialog(
     isVisible: Boolean,
@@ -196,9 +185,6 @@ fun StoragePermissionInfoDialog(
     )
 }
 
-/**
- * Dialog explaining why permissions were denied and how to enable them
- */
 @Composable
 fun StoragePermissionDeniedDialog(
     isVisible: Boolean,
@@ -217,9 +203,6 @@ fun StoragePermissionDeniedDialog(
     )
 }
 
-/**
- * Compact permission status indicator
- */
 @Composable
 fun PermissionStatusIndicator(
     hasPermission: Boolean,
@@ -236,9 +219,7 @@ fun PermissionStatusIndicator(
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.weight(1f)
         )
-        
         Spacer(modifier = Modifier.width(8.dp))
-        
         Text(
             text = if (hasPermission) "Granted" else "Required",
             style = MaterialTheme.typography.bodySmall,

@@ -20,17 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
-/**
- * Progress indicator component with percentage display
- *
- * @param progress Current progress percentage (0-100)
- * @param isVisible Whether the progress indicator should be visible
- * @param title Optional title to display above the progress bar
- * @param modifier Modifier for styling
- */
 @Composable
 fun ProgressIndicator(
     progress: Int,
@@ -53,7 +44,6 @@ fun ProgressIndicator(
                 contentDescription = "Download progress: $progress percent"
             }
     ) {
-        // Title if provided
         title?.let { titleText ->
             Text(
                 text = titleText,
@@ -66,8 +56,6 @@ fun ProgressIndicator(
                     }
             )
         }
-
-        // Progress bar and percentage row
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -85,9 +73,7 @@ fun ProgressIndicator(
                 trackColor = ProgressIndicatorDefaults.linearTrackColor,
                 strokeCap = ProgressIndicatorDefaults.LinearStrokeCap,
             )
-
             Spacer(modifier = Modifier.padding(horizontal = 8.dp))
-
             Text(
                 text = "$progress%",
                 style = MaterialTheme.typography.bodyMedium,
@@ -98,8 +84,6 @@ fun ProgressIndicator(
                 }
             )
         }
-
-        // Progress description
         if (progress > 0) {
             Spacer(modifier = Modifier.height(4.dp))
             Text(
