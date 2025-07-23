@@ -133,6 +133,13 @@ class VideoDownloadRepositoryImpl @Inject constructor(
                 val videoInfo = videoInfoResult.getOrThrow()
                 logger.i(TAG, "Starting download for video: ${videoInfo.title}")
                 
+                // Check if this is from the simple extractor (which can't provide real download URLs)
+                if (videoInfo.downloadUrl.startsWith("SIMPLE_EXTRACTOR_PLACEHOLDER:")) {
+                    logger.w(TAG, "Cannot download video - simple extractor was used (YouTube-DL library failed)")
+                    emit(DownloadProgress.Error(DownloadError.VIDEO_UNAVAILABLE))
+                    return@flow
+                }
+                
                 val fileName = generateFileName(videoInfo)
                 logger.d(TAG, "Generated file name: $fileName")
                 

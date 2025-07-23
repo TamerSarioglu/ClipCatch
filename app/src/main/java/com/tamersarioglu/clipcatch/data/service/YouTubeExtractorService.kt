@@ -1,58 +1,16 @@
 package com.tamersarioglu.clipcatch.data.service
 
 import android.content.Context
+import android.util.Log
 import com.tamersarioglu.clipcatch.data.dto.VideoInfoDto
 import com.tamersarioglu.clipcatch.domain.model.DownloadError
-import com.yausername.youtubedl_android.YoutubeDL
-import com.yausername.youtubedl_android.YoutubeDLRequest
-import com.yausername.youtubedl_android.YoutubeDLResponse
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Internal data class for parsing yt-dlp JSON response
- */
-@Serializable
-private data class YoutubeDLVideoInfo(
-    @SerialName("id")
-    val id: String? = null,
-    
-    @SerialName("title")
-    val title: String? = null,
-    
-    @SerialName("url")
-    val url: String? = null,
-    
-    @SerialName("thumbnail")
-    val thumbnail: String? = null,
-    
-    @SerialName("duration")
-    val duration: Long? = null,
-    
-    @SerialName("filesize")
-    val filesize: Long? = null,
-    
-    @SerialName("filesize_approx")
-    val filesizeApprox: Long? = null,
-    
-    @SerialName("ext")
-    val ext: String? = null,
-    
-    @SerialName("format_id")
-    val formatId: String? = null,
-    
-    @SerialName("webpage_url")
-    val webpageUrl: String? = null,
-    
-    @SerialName("uploader")
-    val uploader: String? = null
-)
+
 
 /**
  * Service interface for YouTube video information extraction
@@ -80,7 +38,8 @@ interface YouTubeExtractorService {
  */
 @Singleton
 class YouTubeExtractorServiceImpl @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val simpleExtractor: SimpleYouTubeExtractorService
 ) : YouTubeExtractorService {
     
     companion object {
@@ -99,38 +58,14 @@ class YouTubeExtractorServiceImpl @Inject constructor(
             // YouTube live URLs
             Regex("^https?://(www\\.)?youtube\\.com/live/([a-zA-Z0-9_-]+).*$")
         )
-        
-        // yt-dlp options for video information extraction
-        private const val FORMAT_SELECTOR = "best[ext=mp4]/best"
-        private const val MAX_DURATION = 3600 // 1 hour limit
-        
-        // Flag to track initialization status
-        private var isInitialized = false
     }
     
-    /**
-     * Initialize the YouTube-DL library if not already initialized
-     * This method is called automatically before any extraction operation
-     */
-    private suspend fun initializeYoutubeDL() = withContext(Dispatchers.IO) {
-        if (!isInitialized) {
-            try {
-                YoutubeDL.getInstance().init(context)
-                // Update the library to get the latest version
-                YoutubeDL.getInstance().updateYoutubeDL(context)
-                isInitialized = true
-            } catch (e: Exception) {
-                throw YouTubeExtractionException(
-                    DownloadError.UNKNOWN_ERROR,
-                    "Failed to initialize YouTube-DL library: ${e.message}",
-                    e
-                )
-            }
-        }
-    }
+
     
     override suspend fun extractVideoInfo(url: String): VideoInfoDto = withContext(Dispatchers.IO) {
         try {
+            Log.d("YouTubeExtractor", "Starting video info extraction for URL: $url")
+            
             if (!isValidYouTubeUrl(url)) {
                 throw YouTubeExtractionException(
                     DownloadError.INVALID_URL,
@@ -138,69 +73,15 @@ class YouTubeExtractorServiceImpl @Inject constructor(
                 )
             }
             
-            // Initialize YouTube-DL library if needed
-            initializeYoutubeDL()
-            
-            // Create yt-dlp request for video information extraction
-            val request = YoutubeDLRequest(url).apply {
-                // Extract video information without downloading
-                addOption("--dump-json")
-                addOption("--no-download")
-                addOption("--format", FORMAT_SELECTOR)
-                addOption("--no-playlist")
-                addOption("--extract-flat", "false")
-                // Add user agent to avoid blocking
-                addOption("--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-                // Set timeout
-                addOption("--socket-timeout", "30")
-                // Retry mechanism for transient errors
-                addOption("--retries", "3")
-                // Skip unavailable fragments
-                addOption("--skip-unavailable-fragments")
-                // Abort on download errors
-                addOption("--abort-on-error")
-            }
-            
-            // Execute yt-dlp request
-            val response: YoutubeDLResponse = YoutubeDL.getInstance().execute(request)
-            
-            if (response.exitCode != 0) {
-                handleYoutubeDLError(response.err, url)
-            }
-            
-            // Parse the JSON response
-            val videoInfo = parseVideoInfoFromResponse(response.out, url)
-            
-            // Validate video duration (optional limit)
-            if (videoInfo.duration > MAX_DURATION) {
-                throw YouTubeExtractionException(
-                    DownloadError.VIDEO_UNAVAILABLE,
-                    "Video duration exceeds maximum allowed length (${MAX_DURATION}s)"
-                )
-            }
-            
-            return@withContext videoInfo
+            // Use simple HTTP-based extraction (YouTube-DL library has initialization issues)
+            Log.d("YouTubeExtractor", "Using simple HTTP-based extraction...")
+            return@withContext simpleExtractor.extractVideoInfo(url)
             
         } catch (e: YouTubeExtractionException) {
+            Log.e("YouTubeExtractor", "YouTube extraction exception: ${e.message}", e)
             throw e
-        } catch (e: SecurityException) {
-            throw YouTubeExtractionException(
-                DownloadError.PERMISSION_DENIED,
-                "Permission denied while extracting video information: ${e.message}"
-            )
-        } catch (e: java.net.SocketTimeoutException) {
-            throw YouTubeExtractionException(
-                DownloadError.NETWORK_ERROR,
-                "Network timeout while extracting video information for URL: $url",
-                e
-            )
-        } catch (e: java.io.IOException) {
-            throw YouTubeExtractionException(
-                DownloadError.NETWORK_ERROR,
-                "Network error while extracting video information: ${e.message}",
-                e
-            )
         } catch (e: Exception) {
+            Log.e("YouTubeExtractor", "Unexpected exception during extraction", e)
             throw YouTubeExtractionException(
                 DownloadError.UNKNOWN_ERROR,
                 "Failed to extract video information: ${e.message}",
@@ -208,6 +89,8 @@ class YouTubeExtractorServiceImpl @Inject constructor(
             )
         }
     }
+    
+
     
     override fun isValidYouTubeUrl(url: String): Boolean {
         // Check for blank or excessively long URLs
@@ -222,63 +105,7 @@ class YouTubeExtractorServiceImpl @Inject constructor(
         }
     }
     
-    /**
-     * Parses video information from yt-dlp JSON response
-     */
-    private fun parseVideoInfoFromResponse(jsonOutput: String, originalUrl: String): VideoInfoDto {
-        try {
-            // Create JSON parser with lenient settings
-            val json = Json {
-                ignoreUnknownKeys = true
-                isLenient = true
-                coerceInputValues = true
-            }
-            
-            // Find the JSON object in the output (yt-dlp may output multiple lines)
-            val jsonLines = jsonOutput.split("\n").filter { it.trim().startsWith("{") && it.trim().endsWith("}") }
-            
-            if (jsonLines.isEmpty()) {
-                throw YouTubeExtractionException(
-                    DownloadError.VIDEO_UNAVAILABLE,
-                    "No valid JSON found in yt-dlp output"
-                )
-            }
-            
-            // Parse the first valid JSON line (should contain video info)
-            val videoInfo = json.decodeFromString<YoutubeDLVideoInfo>(jsonLines.first())
-            
-            // Extract and validate required fields
-            val videoId = videoInfo.id ?: extractVideoIdFromUrl(originalUrl) ?: "unknown"
-            val title = videoInfo.title?.takeIf { it.isNotBlank() } ?: "YouTube Video $videoId"
-            val downloadUrl = videoInfo.url?.takeIf { it.isNotBlank() }
-                ?: throw YouTubeExtractionException(
-                    DownloadError.VIDEO_UNAVAILABLE,
-                    "Could not extract download URL for video"
-                )
-            
-            // Use filesize or filesize_approx, whichever is available
-            val fileSize = videoInfo.filesize ?: videoInfo.filesizeApprox
-            
-            return VideoInfoDto(
-                id = videoId,
-                title = title,
-                downloadUrl = downloadUrl,
-                thumbnailUrl = videoInfo.thumbnail,
-                duration = videoInfo.duration ?: 0L,
-                fileSize = fileSize,
-                format = videoInfo.ext ?: "mp4"
-            )
-            
-        } catch (e: YouTubeExtractionException) {
-            throw e
-        } catch (e: Exception) {
-            throw YouTubeExtractionException(
-                DownloadError.UNKNOWN_ERROR,
-                "Failed to parse video information: ${e.message}",
-                e
-            )
-        }
-    }
+
     
     /**
      * Extracts video ID from YouTube URL

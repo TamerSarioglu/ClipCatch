@@ -18,6 +18,8 @@ class ErrorHandler @Inject constructor() {
     
     fun mapExceptionToDownloadError(exception: Throwable): DownloadError {
         return when (exception) {
+            is com.tamersarioglu.clipcatch.data.service.YouTubeExtractionException -> exception.error
+            is com.tamersarioglu.clipcatch.data.service.SimpleYouTubeExtractionException -> exception.error
             is NetworkException -> mapNetworkExceptionToDownloadError(exception)
             is SecurityException -> DownloadError.PERMISSION_DENIED
             is UnknownHostException -> DownloadError.NETWORK_ERROR
@@ -82,7 +84,7 @@ class ErrorHandler @Inject constructor() {
             DownloadError.PERMISSION_DENIED ->
                 "Storage permission is required to download videos. Please grant permission and try again."
             DownloadError.VIDEO_UNAVAILABLE ->
-                "This video is not available for download. It may be private, deleted, or restricted."
+                "This video cannot be downloaded. The YouTube extraction service is currently unavailable."
             DownloadError.INSUFFICIENT_STORAGE ->
                 "Not enough storage space available. Please free up some space and try again."
             DownloadError.AGE_RESTRICTED ->

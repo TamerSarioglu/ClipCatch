@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -64,7 +65,6 @@ fun DownloadScreen(
     viewModel: DownloadViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val snackbarHostState = remember { SnackbarHostState() }
     
@@ -319,14 +319,25 @@ private fun DownloadCompleteActions(
         OutlinedButton(
             onClick = {
                 try {
-                    val intent = Intent(Intent.ACTION_VIEW).apply {
-                        val uri = Uri.fromFile(File(filePath))
-                        setDataAndType(uri, "video/*")
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    val file = File(filePath)
+                    if (file.exists()) {
+                        val uri = androidx.core.content.FileProvider.getUriForFile(
+                            context,
+                            "${context.packageName}.fileprovider",
+                            file
+                        )
+                        val intent = Intent(Intent.ACTION_VIEW).apply {
+                            setDataAndType(uri, "video/*")
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        context.startActivity(Intent.createChooser(intent, "Open video with"))
+                    } else {
+                        // File doesn't exist - show error
+                        Toast.makeText(context, "File not found", Toast.LENGTH_SHORT).show()
                     }
-                    context.startActivity(Intent.createChooser(intent, "Open video with"))
                 } catch (e: Exception) {
-                    // Handle error - could show a toast or snackbar
+                    // Handle error - show toast with error message
+                    Toast.makeText(context, "Error opening file: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             },
             modifier = Modifier
@@ -347,14 +358,34 @@ private fun DownloadCompleteActions(
         OutlinedButton(
             onClick = {
                 try {
-                    val intent = Intent(Intent.ACTION_VIEW).apply {
-                        val uri = Uri.fromFile(File(filePath).parentFile)
-                        setDataAndType(uri, "resource/folder")
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    val file = File(filePath)
+                    val parentFile = file.parentFile
+                    
+                    if (parentFile != null && parentFile.exists()) {
+                        // Try to open with file manager using MediaStore
+                        val intent = Intent(Intent.ACTION_VIEW).apply {
+                            // Use the Downloads directory URI
+                            val uri = Uri.parse("content://com.android.externalstorage.documents/document/primary%3ADownload")
+                            setDataAndType(uri, "vnd.android.document/directory")
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        
+                        try {
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            // Fallback: try to open Downloads folder with generic intent
+                            val fallbackIntent = Intent(Intent.ACTION_VIEW).apply {
+                                type = "resource/folder"
+                                putExtra("org.openintents.extra.ABSOLUTE_PATH", parentFile.absolutePath)
+                            }
+                            context.startActivity(Intent.createChooser(fallbackIntent, "Open folder with"))
+                        }
+                    } else {
+                        Toast.makeText(context, "Folder not found", Toast.LENGTH_SHORT).show()
                     }
-                    context.startActivity(Intent.createChooser(intent, "Open folder with"))
                 } catch (e: Exception) {
-                    // Handle error - could show a toast or snackbar
+                    // Handle error - show toast with error message
+                    Toast.makeText(context, "Error opening folder: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             },
             modifier = Modifier

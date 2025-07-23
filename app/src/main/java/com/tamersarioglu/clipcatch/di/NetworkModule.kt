@@ -11,6 +11,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import javax.inject.Qualifier
 import kotlinx.serialization.json.Json
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
@@ -23,6 +24,18 @@ import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class NetworkConnectionInterceptor
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class ErrorHandlingInterceptor
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class RetryInterceptor
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -60,6 +73,7 @@ object NetworkModule {
     
     @Provides
     @Singleton
+    @NetworkConnectionInterceptor
     fun provideNetworkConnectionInterceptor(
         networkUtils: NetworkUtils
     ): Interceptor {
@@ -73,6 +87,7 @@ object NetworkModule {
     
     @Provides
     @Singleton
+    @ErrorHandlingInterceptor
     fun provideErrorHandlingInterceptor(): Interceptor {
         return Interceptor { chain ->
             val request = chain.request()
@@ -102,6 +117,7 @@ object NetworkModule {
     
     @Provides
     @Singleton
+    @RetryInterceptor
     fun provideRetryInterceptor(): Interceptor {
         return Interceptor { chain ->
             val request = chain.request()
@@ -154,9 +170,9 @@ object NetworkModule {
     @Singleton
     fun provideOkHttpClient(
         loggingInterceptor: HttpLoggingInterceptor,
-        networkConnectionInterceptor: Interceptor,
-        errorHandlingInterceptor: Interceptor,
-        retryInterceptor: Interceptor
+        @NetworkConnectionInterceptor networkConnectionInterceptor: Interceptor,
+        @ErrorHandlingInterceptor errorHandlingInterceptor: Interceptor,
+        @RetryInterceptor retryInterceptor: Interceptor
     ): OkHttpClient {
         return OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)

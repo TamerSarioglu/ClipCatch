@@ -7,6 +7,10 @@ import com.tamersarioglu.clipcatch.data.service.FileManagerService
 import com.tamersarioglu.clipcatch.data.service.FileManagerServiceImpl
 import com.tamersarioglu.clipcatch.data.service.YouTubeExtractorService
 import com.tamersarioglu.clipcatch.data.service.YouTubeExtractorServiceImpl
+import com.tamersarioglu.clipcatch.data.util.ErrorHandler
+import com.tamersarioglu.clipcatch.data.util.Logger
+import com.tamersarioglu.clipcatch.data.util.NetworkUtils
+import com.tamersarioglu.clipcatch.data.util.RetryUtils
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -31,15 +35,24 @@ object StorageModule {
     fun provideDownloadManagerService(
         okHttpClient: OkHttpClient,
         fileManager: FileManagerService,
-        errorHandler: com.tamersarioglu.clipcatch.data.util.ErrorHandler,
-        logger: com.tamersarioglu.clipcatch.data.util.Logger,
-        networkUtils: com.tamersarioglu.clipcatch.data.util.NetworkUtils,
-        retryUtils: com.tamersarioglu.clipcatch.data.util.RetryUtils
+        errorHandler: ErrorHandler,
+        logger: Logger,
+        networkUtils: NetworkUtils,
+        retryUtils: RetryUtils
     ): DownloadManagerService = DownloadManagerServiceImpl(okHttpClient, fileManager, errorHandler, logger, networkUtils, retryUtils)
     
     @Provides
     @Singleton
+    fun provideSimpleYouTubeExtractorService(
+        @ApplicationContext context: Context,
+        okHttpClient: OkHttpClient
+    ): com.tamersarioglu.clipcatch.data.service.SimpleYouTubeExtractorService = 
+        com.tamersarioglu.clipcatch.data.service.SimpleYouTubeExtractorService(context, okHttpClient)
+    
+    @Provides
+    @Singleton
     fun provideYouTubeExtractorService(
-        @ApplicationContext context: Context
-    ): YouTubeExtractorService = YouTubeExtractorServiceImpl(context)
+        @ApplicationContext context: Context,
+        simpleExtractor: com.tamersarioglu.clipcatch.data.service.SimpleYouTubeExtractorService
+    ): YouTubeExtractorService = YouTubeExtractorServiceImpl(context, simpleExtractor)
 }

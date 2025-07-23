@@ -78,10 +78,8 @@ dependencies {
     // ViewModel
     implementation(libs.lifecycle.viewmodel.compose)
 
-    // Youtube Wrapper
-    implementation(libs.library)
-    implementation(libs.ffmpeg)
-    implementation(libs.aria2c)
+    // YouTube Downloader - using simple HTTP-based extraction only
+    // (YouTube-DL library removed due to initialization issues)
     
     // File operations
     implementation(libs.androidx.documentfile)

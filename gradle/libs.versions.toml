@@ -1,6 +1,6 @@
 [versions]
 agp = "8.12.0-alpha08"
-aria2c = "0.17.4"
+
 kotlin = "2.2.0"
 coreKtx = "1.16.0"
 junit = "4.13.2"
@@ -25,8 +25,7 @@ robolectric = "4.11.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
-aria2c = { module = "io.github.junkfood02.youtubedl-android:aria2c", version.ref = "aria2c" }
-ffmpeg = { module = "io.github.junkfood02.youtubedl-android:ffmpeg", version.ref = "aria2c" }
+
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
@@ -48,7 +47,7 @@ hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-com
 
 # Kotlin Serialization
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
-library = { module = "io.github.junkfood02.youtubedl-android:library", version.ref = "aria2c" }
+
 retrofit-kotlinx-serialization = { group = "com.jakewharton.retrofit", name = "retrofit2-kotlinx-serialization-converter", version.ref = "retrofitKotlinxSerialization" }
 
 # Networking
