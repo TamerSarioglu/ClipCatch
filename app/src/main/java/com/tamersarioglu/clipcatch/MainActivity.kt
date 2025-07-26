@@ -45,9 +45,21 @@ fun MainContent() {
     LaunchedEffect(Unit) {
         try {
             val app = context.applicationContext as ClipCatchApplication
-            val isInitialized = app.ensureYoutubeDLInitialized()
-            youtubeDLStatus = if (isInitialized) "YouTube-DL Ready" else "YouTube-DL Failed - Check logs"
-            Log.d("MainActivity", "YouTube-DL Status: $youtubeDLStatus")
+            app.ensureYoutubeDLInitialized()
+            
+            // Check status periodically until initialization is complete
+            while (true) {
+                val status = app.getYoutubeDLStatus()
+                youtubeDLStatus = status
+                Log.d("MainActivity", "YouTube-DL Status: $youtubeDLStatus")
+                
+                if (status == "YouTube-DL Ready" || status == "YouTube-DL Failed - Check logs") {
+                    break
+                }
+                
+                // Wait a bit before checking again
+                kotlinx.coroutines.delay(500)
+            }
         } catch (e: Exception) {
             youtubeDLStatus = "Error: ${e.message}"
             Log.e("MainActivity", "YouTube-DL initialization error", e)

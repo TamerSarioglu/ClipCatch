@@ -82,6 +82,7 @@ android {
                 "**/python.zip",
                 "**/ffmpeg.zip"
             )
+
         }
     }
 }
@@ -123,6 +124,9 @@ dependencies {
     implementation(libs.youtubedl.ffmpeg)
     implementation(libs.youtubedl.aria2c)
     implementation(libs.commons.compress)
+    
+    // Android Support library for native dependencies
+    implementation("androidx.legacy:legacy-support-v4:1.0.0")
     
     // File operations
     implementation(libs.androidx.documentfile)
