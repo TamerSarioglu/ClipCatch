@@ -67,18 +67,28 @@ class YouTubeExtractorServiceImpl @Inject constructor(
                 addOption("--prefer-free-formats")
                 addOption("--add-header", "referer:youtube.com")
                 addOption("--add-header", "user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                addOption("--no-warnings")
+                addOption("--quiet")
+                addOption("--ignore-errors")
             }
             
             val response = YoutubeDL.getInstance().execute(request)
             
             if (response.exitCode != 0) {
-                val errorMessage = response.err ?: "Unknown YouTube-DL error"
+                val errorMessage = response.err
                 Log.e("YouTubeExtractor", "YouTube-DL failed with exit code ${response.exitCode}: $errorMessage")
-                handleYoutubeDLError(errorMessage, url)
+                
+                // Check if this is just a Python deprecation warning but extraction still worked
+                val jsonOutput = response.out
+                if (jsonOutput.isNotBlank() && errorMessage.contains("python version", ignoreCase = true) && errorMessage.contains("deprecated", ignoreCase = true)) {
+                    Log.w("YouTubeExtractor", "Python deprecation warning detected but extraction succeeded, continuing...")
+                } else {
+                    handleYoutubeDLError(errorMessage, url)
+                }
             }
             
             val jsonOutput = response.out
-            if (jsonOutput.isNullOrBlank()) {
+            if (jsonOutput.isBlank()) {
                 throw YouTubeExtractionException(
                     DownloadError.UNKNOWN_ERROR,
                     "YouTube-DL returned empty output for URL: $url"
@@ -176,6 +186,12 @@ class YouTubeExtractorServiceImpl @Inject constructor(
         val lowerError = errorMessage.lowercase()
         
         val error = when {
+            lowerError.contains("python version") && 
+            (lowerError.contains("deprecated") || lowerError.contains("not supported")) -> {
+                Log.e("YouTubeExtractor", "Python version compatibility issue detected")
+                DownloadError.UNKNOWN_ERROR
+            }
+            
             lowerError.contains("private video") || 
             lowerError.contains("video unavailable") ||
             lowerError.contains("video has been removed") ||
@@ -198,10 +214,19 @@ class YouTubeExtractorServiceImpl @Inject constructor(
             lowerError.contains("malformed") ||
             lowerError.contains("unsupported url") -> DownloadError.INVALID_URL
             
+            lowerError.contains("requested format is not available") ||
+            lowerError.contains("no video formats found") -> DownloadError.VIDEO_UNAVAILABLE
+            
             else -> DownloadError.UNKNOWN_ERROR
         }
         
-        throw YouTubeExtractionException(error, "yt-dlp error for URL '$url': $errorMessage")
+        val userFriendlyMessage = when {
+            error == DownloadError.UNKNOWN_ERROR && lowerError.contains("python version") -> 
+                "Video extraction failed due to compatibility issues. Please try again or contact support."
+            else -> "yt-dlp error for URL '$url': $errorMessage"
+        }
+        
+        throw YouTubeExtractionException(error, userFriendlyMessage)
     }
 }
 
