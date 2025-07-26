@@ -1,6 +1,6 @@
 package com.tamersarioglu.clipcatch.ui.viewmodel
 
-import com.tamersarioglu.clipcatch.data.util.ErrorRecoveryAction
+import com.tamersarioglu.clipcatch.util.ErrorRecoveryAction
 import com.tamersarioglu.clipcatch.domain.model.DownloadError
 import com.tamersarioglu.clipcatch.domain.model.VideoInfo
 

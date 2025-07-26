@@ -1,4 +1,4 @@
-package com.tamersarioglu.clipcatch.data.util
+package com.tamersarioglu.clipcatch.util
 
 import javax.inject.Inject
 import javax.inject.Singleton

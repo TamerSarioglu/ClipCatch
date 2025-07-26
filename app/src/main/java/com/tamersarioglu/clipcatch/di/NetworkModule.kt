@@ -3,9 +3,10 @@ package com.tamersarioglu.clipcatch.di
 import android.content.Context
 import android.util.Log
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
-import com.tamersarioglu.clipcatch.data.util.NetworkException
-import com.tamersarioglu.clipcatch.data.util.NetworkUtils
-import com.tamersarioglu.clipcatch.data.util.toNetworkException
+import com.tamersarioglu.clipcatch.util.NetworkException
+import com.tamersarioglu.clipcatch.util.NetworkUtils
+import com.tamersarioglu.clipcatch.util.Logger
+import com.tamersarioglu.clipcatch.util.toNetworkException
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -20,8 +21,6 @@ import okhttp3.Response
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import java.io.IOException
-import java.net.SocketTimeoutException
-import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
@@ -66,7 +65,7 @@ object NetworkModule {
     @Singleton
     fun provideNetworkUtils(
         @ApplicationContext context: Context,
-        logger: com.tamersarioglu.clipcatch.data.util.Logger
+        logger: Logger
     ): NetworkUtils {
         return NetworkUtils(context, logger)
     }

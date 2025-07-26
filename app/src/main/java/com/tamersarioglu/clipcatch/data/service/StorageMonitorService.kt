@@ -2,7 +2,7 @@ package com.tamersarioglu.clipcatch.data.service
 
 import android.content.Context
 import android.os.StatFs
-import com.tamersarioglu.clipcatch.data.util.Logger
+import com.tamersarioglu.clipcatch.util.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

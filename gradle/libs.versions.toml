@@ -1,6 +1,6 @@
 [versions]
 agp = "8.12.0-alpha08"
-youtubedl = "0.15.0"
+youtubedl = "0.17.4"
 commonsCompress = "1.27.1"
 hiltAndroidTesting = "2.57"
 kotlin = "2.2.0"
@@ -28,9 +28,10 @@ robolectric = "4.15.1"
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 
-# YouTube Downloader
-youtubedl-library = { module = "com.github.yausername.youtubedl-android:library", version.ref = "youtubedl" }
-youtubedl-ffmpeg = { module = "com.github.yausername.youtubedl-android:ffmpeg", version.ref = "youtubedl" }
+# YouTube Downloader - Correct configuration
+youtubedl-library = { group = "io.github.junkfood02.youtubedl-android", name = "library", version.ref = "youtubedl" }
+youtubedl-ffmpeg = { group = "io.github.junkfood02.youtubedl-android", name = "ffmpeg", version.ref = "youtubedl" }
+youtubedl-aria2c = { group = "io.github.junkfood02.youtubedl-android", name = "aria2c", version.ref = "youtubedl" }
 commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commonsCompress" }
 
 androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }

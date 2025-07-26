@@ -8,7 +8,7 @@ import android.os.Environment
 import android.os.StatFs
 import android.provider.MediaStore
 import android.util.Log
-import com.tamersarioglu.clipcatch.data.util.Logger
+import com.tamersarioglu.clipcatch.util.Logger
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

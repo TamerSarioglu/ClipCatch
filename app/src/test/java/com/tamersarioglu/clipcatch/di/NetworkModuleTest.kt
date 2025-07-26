@@ -2,15 +2,12 @@ package com.tamersarioglu.clipcatch.di
 
 import android.content.Context
 import android.net.ConnectivityManager
-import com.tamersarioglu.clipcatch.data.util.NetworkUtils
+import com.tamersarioglu.clipcatch.util.NetworkUtils
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.serialization.json.Json
-import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import org.junit.Assert.*
 import org.junit.Test
-import retrofit2.Retrofit
 
 class NetworkModuleTest {
     

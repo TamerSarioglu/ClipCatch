@@ -1,5 +1,6 @@
 package com.tamersarioglu.clipcatch.data.util
 
+import com.tamersarioglu.clipcatch.util.UrlValidator
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull

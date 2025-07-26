@@ -2,9 +2,9 @@ package com.tamersarioglu.clipcatch.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.tamersarioglu.clipcatch.data.util.ErrorHandler
-import com.tamersarioglu.clipcatch.data.util.ErrorRecoveryAction
-import com.tamersarioglu.clipcatch.data.util.Logger
+import com.tamersarioglu.clipcatch.util.ErrorHandler
+import com.tamersarioglu.clipcatch.util.ErrorRecoveryAction
+import com.tamersarioglu.clipcatch.util.Logger
 import com.tamersarioglu.clipcatch.domain.model.DownloadError
 import com.tamersarioglu.clipcatch.domain.model.DownloadProgress
 import com.tamersarioglu.clipcatch.domain.usecase.DownloadVideoUseCase

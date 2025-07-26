@@ -59,7 +59,8 @@ import java.io.File
 @Composable
 fun DownloadScreen(
     modifier: Modifier = Modifier,
-    viewModel: DownloadViewModel = hiltViewModel()
+    viewModel: DownloadViewModel = hiltViewModel(),
+    youtubeDLStatus: String = "Unknown"
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val configuration = LocalConfiguration.current
@@ -122,6 +123,19 @@ fun DownloadScreen(
                         contentDescription = "App description: Download YouTube videos directly to your device"
                     }
             )
+            
+            // YouTube-DL Status Display
+            StatusMessage(
+                message = "YouTube-DL Status: $youtubeDLStatus",
+                type = when {
+                    youtubeDLStatus.contains("Ready") -> StatusMessageType.SUCCESS
+                    youtubeDLStatus.contains("Failed") || youtubeDLStatus.contains("Error") -> StatusMessageType.ERROR
+                    else -> StatusMessageType.INFO
+                },
+                isVisible = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            
             Spacer(modifier = Modifier.height(if (isLandscape) 4.dp else 8.dp))
             UrlInputField(
                 url = uiState.url,
@@ -129,7 +143,7 @@ fun DownloadScreen(
                 isValid = uiState.isUrlValid,
                 errorMessage = uiState.urlErrorMessage,
                 isValidating = uiState.isValidatingUrl,
-                enabled = !uiState.isDownloading,
+                enabled = !uiState.isDownloading && youtubeDLStatus.contains("Ready"),
                 modifier = Modifier.fillMaxWidth()
             )
             uiState.videoInfo?.let { videoInfo ->
@@ -148,7 +162,7 @@ fun DownloadScreen(
                         viewModel.downloadVideo()
                     }
                 },
-                enabled = uiState.canStartDownload,
+                enabled = uiState.canStartDownload && youtubeDLStatus.contains("Ready"),
                 isLoading = uiState.isDownloading,
                 modifier = Modifier.fillMaxWidth()
             )

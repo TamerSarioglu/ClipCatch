@@ -1,92 +1,61 @@
 package com.tamersarioglu.clipcatch
 
-import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.unit.dp
-import androidx.core.view.WindowCompat
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.tamersarioglu.clipcatch.ui.screen.DownloadScreen
 import com.tamersarioglu.clipcatch.ui.theme.ClipCatchTheme
-import com.tamersarioglu.clipcatch.ui.viewmodel.DownloadViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import android.util.Log
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent {
             ClipCatchTheme {
-                MainContent()
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    MainContent()
+                }
             }
         }
     }
 }
 
 @Composable
-private fun MainContent() {
-    val viewModel: DownloadViewModel = hiltViewModel()
-    val uiState by viewModel.uiState.collectAsState()
-    val configuration = LocalConfiguration.current
-    BackHandler(enabled = uiState.isDownloading) {
-        viewModel.cancelDownload()
-    }
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        Scaffold(
-            modifier = Modifier.fillMaxSize()
-        ) { paddingValues ->
-            when {
-                configuration.screenWidthDp >= 840 -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        DownloadScreen(
-                            modifier = Modifier
-                                .widthIn(max = 600.dp)
-                                .fillMaxSize()
-                        )
-                    }
-                }
-                configuration.orientation == Configuration.ORIENTATION_LANDSCAPE -> {
-                    DownloadScreen(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues)
-                            .padding(horizontal = 32.dp)
-                    )
-                }
-                else -> {
-                    DownloadScreen(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues)
-                    )
-                }
-            }
+fun MainContent() {
+    val context = LocalContext.current
+    var youtubeDLStatus by remember { mutableStateOf("Checking...") }
+    
+    LaunchedEffect(Unit) {
+        try {
+            val app = context.applicationContext as ClipCatchApplication
+            val isInitialized = app.ensureYoutubeDLInitialized()
+            youtubeDLStatus = if (isInitialized) "YouTube-DL Ready" else "YouTube-DL Failed - Check logs"
+            Log.d("MainActivity", "YouTube-DL Status: $youtubeDLStatus")
+        } catch (e: Exception) {
+            youtubeDLStatus = "Error: ${e.message}"
+            Log.e("MainActivity", "YouTube-DL initialization error", e)
         }
     }
+    
+    DownloadScreen(
+        viewModel = hiltViewModel(),
+        youtubeDLStatus = youtubeDLStatus
+    )
 }

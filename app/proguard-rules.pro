@@ -19,3 +19,21 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# YouTube-DL library rules
+-keep class com.yausername.youtubedl_android.** { *; }
+
+# Keep native library names
+-keep class * {
+    native <methods>;
+}
+
+# Keep Python-related classes
+-keep class * {
+    *python*;
+}
+
+# Keep FFmpeg-related classes
+-keep class * {
+    *ffmpeg*;
+}

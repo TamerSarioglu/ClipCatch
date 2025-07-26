@@ -43,6 +43,7 @@ android {
     kotlin {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
+            freeCompilerArgs.add("-XXLanguage:+PropertyParamAnnotationDefaultTargetMode")
         }
     }
     buildFeatures {
@@ -51,21 +52,18 @@ android {
 
     packaging {
         jniLibs {
-            useLegacyPackaging = true
+            useLegacyPackaging = false
             pickFirsts += listOf(
                 "**/libc++_shared.so",
                 "**/libjsc.so", 
                 "**/libfbjni.so",
+                "**/libpython*.so",
+                "**/libffmpeg*.so",
+                "**/libssl*.so",
+                "**/libcrypto*.so",
+                "**/libpython3*.so",
                 "**/libpython.zip.so",
-                "**/libffmpeg.zip.so",
-                "**/libssl.so.1.1",
-                "**/libcrypto.so.1.1",
-                "lib/*/libpython*.so",
-                "lib/*/libssl*.so",
-                "lib/*/libcrypto*.so",
-                "lib/*/libc++_shared.so",
-                "**/libpython.so",
-                "**/libpython3.so"
+                "**/libffmpeg.zip.so"
             )
         }
         resources {
@@ -81,16 +79,9 @@ android {
                 "**/*.pyc",
                 "**/*.pyo",
                 "**/private.mp3",
-                "**/python.zip"
+                "**/python.zip",
+                "**/ffmpeg.zip"
             )
-        }
-    }
-
-    // Configure native library extraction for youtubedl-android
-    androidComponents {
-        onVariants(selector().all()) { variant ->
-            variant.packaging.jniLibs.pickFirsts.add("**/libpython.zip.so")
-            variant.packaging.jniLibs.pickFirsts.add("**/libpython.so")
         }
     }
 }
@@ -127,9 +118,10 @@ dependencies {
     // ViewModel
     implementation(libs.lifecycle.viewmodel.compose)
 
-    // YouTube Downloader
+    // YouTube Downloader - Correct configuration
     implementation(libs.youtubedl.library)
     implementation(libs.youtubedl.ffmpeg)
+    implementation(libs.youtubedl.aria2c)
     implementation(libs.commons.compress)
     
     // File operations

@@ -7,10 +7,10 @@ import com.tamersarioglu.clipcatch.data.service.FileManagerService
 import com.tamersarioglu.clipcatch.data.service.FileManagerServiceImpl
 import com.tamersarioglu.clipcatch.data.service.YouTubeExtractorService
 import com.tamersarioglu.clipcatch.data.service.YouTubeExtractorServiceImpl
-import com.tamersarioglu.clipcatch.data.util.ErrorHandler
-import com.tamersarioglu.clipcatch.data.util.Logger
-import com.tamersarioglu.clipcatch.data.util.NetworkUtils
-import com.tamersarioglu.clipcatch.data.util.RetryUtils
+import com.tamersarioglu.clipcatch.util.ErrorHandler
+import com.tamersarioglu.clipcatch.util.Logger
+import com.tamersarioglu.clipcatch.util.NetworkUtils
+import com.tamersarioglu.clipcatch.util.RetryUtils
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -27,7 +27,7 @@ object StorageModule {
     @Singleton
     fun provideFileManagerService(
         @ApplicationContext context: Context,
-        logger: com.tamersarioglu.clipcatch.data.util.Logger
+        logger: Logger
     ): FileManagerService = FileManagerServiceImpl(context, logger)
     
     @Provides

@@ -1,6 +1,7 @@
-package com.tamersarioglu.clipcatch.data.util
+package com.tamersarioglu.clipcatch.util
 
 import android.util.Log
+import com.tamersarioglu.clipcatch.data.service.YouTubeExtractionException
 import com.tamersarioglu.clipcatch.domain.model.DownloadError
 import java.io.IOException
 import java.net.SocketTimeoutException
@@ -18,7 +19,7 @@ class ErrorHandler @Inject constructor() {
     
     fun mapExceptionToDownloadError(exception: Throwable): DownloadError {
         return when (exception) {
-            is com.tamersarioglu.clipcatch.data.service.YouTubeExtractionException -> exception.error
+            is YouTubeExtractionException -> exception.error
             is NetworkException -> mapNetworkExceptionToDownloadError(exception)
             is SecurityException -> DownloadError.PERMISSION_DENIED
             is UnknownHostException -> DownloadError.NETWORK_ERROR

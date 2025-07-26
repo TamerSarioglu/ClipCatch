@@ -1,11 +1,11 @@
 package com.tamersarioglu.clipcatch.data.service
 
 import android.content.Context
-import com.tamersarioglu.clipcatch.data.util.Logger
-import com.tamersarioglu.clipcatch.data.util.NetworkConnectivityResult
-import com.tamersarioglu.clipcatch.data.util.NetworkInfo
-import com.tamersarioglu.clipcatch.data.util.NetworkSuitability
-import com.tamersarioglu.clipcatch.data.util.NetworkUtils
+import com.tamersarioglu.clipcatch.util.Logger
+import com.tamersarioglu.clipcatch.util.NetworkConnectivityResult
+import com.tamersarioglu.clipcatch.util.NetworkInfo
+import com.tamersarioglu.clipcatch.util.NetworkSuitability
+import com.tamersarioglu.clipcatch.util.NetworkUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

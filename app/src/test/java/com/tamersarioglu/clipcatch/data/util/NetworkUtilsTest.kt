@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
+import com.tamersarioglu.clipcatch.util.NetworkUtils
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.Assert.*

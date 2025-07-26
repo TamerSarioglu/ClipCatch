@@ -1,6 +1,10 @@
-package com.tamersarioglu.clipcatch.data.util
+package com.tamersarioglu.clipcatch.util
 
 import kotlinx.coroutines.delay
+import java.io.IOException
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.min
@@ -102,10 +106,10 @@ class RetryUtils @Inject constructor(
     }
     private fun isRetryableException(exception: Throwable): Boolean {
         return when (exception) {
-            is java.net.SocketTimeoutException -> true
-            is java.net.ConnectException -> true
-            is java.net.UnknownHostException -> true
-            is java.io.IOException -> {
+            is SocketTimeoutException -> true
+            is ConnectException -> true
+            is UnknownHostException -> true
+            is IOException -> {
                 val message = exception.message?.lowercase() ?: ""
                 when {
                     message.contains("timeout") -> true

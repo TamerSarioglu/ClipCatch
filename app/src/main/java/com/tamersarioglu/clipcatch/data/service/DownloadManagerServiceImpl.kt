@@ -1,14 +1,13 @@
 package com.tamersarioglu.clipcatch.data.service
 
 import com.tamersarioglu.clipcatch.data.dto.DownloadProgressDto
-import com.tamersarioglu.clipcatch.data.util.ErrorHandler
-import com.tamersarioglu.clipcatch.data.util.Logger
-import com.tamersarioglu.clipcatch.data.util.NetworkUtils
-import com.tamersarioglu.clipcatch.data.util.RetryUtils
+import com.tamersarioglu.clipcatch.util.ErrorHandler
+import com.tamersarioglu.clipcatch.util.Logger
+import com.tamersarioglu.clipcatch.util.NetworkUtils
+import com.tamersarioglu.clipcatch.util.RetryUtils
 import com.tamersarioglu.clipcatch.domain.model.DownloadError
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
@@ -17,8 +16,6 @@ import okhttp3.Request
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
-import java.net.SocketTimeoutException
-import java.net.UnknownHostException
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton

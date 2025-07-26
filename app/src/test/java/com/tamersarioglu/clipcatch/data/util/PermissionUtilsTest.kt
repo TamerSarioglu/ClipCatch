@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.content.ContextCompat
+import com.tamersarioglu.clipcatch.util.PermissionUtils
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic

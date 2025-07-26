@@ -1,6 +1,9 @@
-package com.tamersarioglu.clipcatch.data.util
+package com.tamersarioglu.clipcatch.util
 
 import java.io.IOException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
+import javax.net.ssl.SSLException
 
 sealed class NetworkException(message: String, cause: Throwable? = null) : IOException(message, cause) {
     
@@ -22,9 +25,9 @@ sealed class NetworkException(message: String, cause: Throwable? = null) : IOExc
 fun Throwable.toNetworkException(): NetworkException {
     return when (this) {
         is NetworkException -> this
-        is java.net.SocketTimeoutException -> NetworkException.TimeoutException(cause = this)
-        is java.net.UnknownHostException -> NetworkException.UnknownHostException(cause = this)
-        is javax.net.ssl.SSLException -> NetworkException.SSLException(cause = this)
+        is SocketTimeoutException -> NetworkException.TimeoutException(cause = this)
+        is UnknownHostException -> NetworkException.UnknownHostException(cause = this)
+        is SSLException -> NetworkException.SSLException(cause = this)
         else -> NetworkException.GenericNetworkException(message = this.message ?: "Unknown network error", cause = this)
     }
 }

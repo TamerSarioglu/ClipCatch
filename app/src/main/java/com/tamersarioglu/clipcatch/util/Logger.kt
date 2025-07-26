@@ -1,4 +1,4 @@
-package com.tamersarioglu.clipcatch.data.util
+package com.tamersarioglu.clipcatch.util
 
 import android.util.Log
 import javax.inject.Inject
