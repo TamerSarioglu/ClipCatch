@@ -57,74 +57,8 @@ class YouTubeExtractorServiceImpl @Inject constructor(
                 )
             }
             
-            Log.d("YouTubeExtractor", "Using YouTube-DL for video info extraction...")
-            
-            val request = YoutubeDLRequest(url).apply {
-                addOption("--dump-json")
-                addOption("--no-playlist")
-                addOption("--format", "best[ext=mp4]/best")
-                addOption("--no-check-certificate")
-                addOption("--prefer-free-formats")
-                addOption("--add-header", "referer:youtube.com")
-                addOption("--add-header", "user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-                addOption("--no-warnings")
-                addOption("--quiet")
-                addOption("--ignore-errors")
-            }
-            
-            val response = YoutubeDL.getInstance().execute(request)
-            
-            if (response.exitCode != 0) {
-                val errorMessage = response.err
-                Log.e("YouTubeExtractor", "YouTube-DL failed with exit code ${response.exitCode}: $errorMessage")
-                
-                // Check if this is just a Python deprecation warning but extraction still worked
-                val jsonOutput = response.out
-                if (jsonOutput.isNotBlank() && errorMessage.contains("python version", ignoreCase = true) && errorMessage.contains("deprecated", ignoreCase = true)) {
-                    Log.w("YouTubeExtractor", "Python deprecation warning detected but extraction succeeded, continuing...")
-                } else {
-                    handleYoutubeDLError(errorMessage, url)
-                }
-            }
-            
-            val jsonOutput = response.out
-            if (jsonOutput.isBlank()) {
-                throw YouTubeExtractionException(
-                    DownloadError.UNKNOWN_ERROR,
-                    "YouTube-DL returned empty output for URL: $url"
-                )
-            }
-            
-            Log.d("YouTubeExtractor", "Parsing YouTube-DL JSON response...")
-            val videoJson = JSONObject(jsonOutput)
-            
-            val videoId = videoJson.optString("id", "")
-            val title = videoJson.optString("title", "Unknown Title")
-            val duration = videoJson.optLong("duration", 0L)
-            val thumbnailUrl = videoJson.optString("thumbnail")
-            val fileSize = videoJson.optLong("filesize", 0L).takeIf { it > 0 }
-            val format = videoJson.optString("ext", "mp4")
-            
-            // Get the actual download URL
-            val downloadUrl = videoJson.optString("url", "")
-            if (downloadUrl.isBlank()) {
-                throw YouTubeExtractionException(
-                    DownloadError.VIDEO_UNAVAILABLE,
-                    "Could not extract download URL from video info"
-                )
-            }
-            
-            Log.d("YouTubeExtractor", "Successfully extracted video info: $title")
-            
-            return@withContext VideoInfoDto(
-                id = videoId,
-                title = title,
-                downloadUrl = downloadUrl,
-                thumbnailUrl = thumbnailUrl.takeIf { it.isNotBlank() },
-                duration = duration,
-                fileSize = fileSize,
-                format = format
-            )
+            // Use retry mechanism for format fallback
+            return@withContext extractWithRetry(url)
             
         } catch (e: YouTubeExtractionException) {
             Log.e("YouTubeExtractor", "YouTube extraction exception: ${e.message}", e)
@@ -172,6 +106,147 @@ class YouTubeExtractorServiceImpl @Inject constructor(
         }
     }
 
+    private suspend fun extractWithRetry(url: String, maxAttempts: Int = 3): VideoInfoDto {
+        var lastException: Exception? = null
+        
+        for (attempt in 1..maxAttempts) {
+            try {
+                Log.d("YouTubeExtractor", "Extraction attempt $attempt for URL: $url")
+                return performExtraction(url, attempt)
+            } catch (e: YouTubeExtractionException) {
+                if (isFormatRelatedError(e) && attempt < maxAttempts) {
+                    Log.w("YouTubeExtractor", "Format error on attempt $attempt, retrying with different strategy...")
+                    lastException = e
+                    continue
+                }
+                throw e
+            } catch (e: Exception) {
+                Log.e("YouTubeExtractor", "Unexpected error on attempt $attempt", e)
+                throw YouTubeExtractionException(
+                    DownloadError.UNKNOWN_ERROR,
+                    "Failed to extract video information: ${e.message}",
+                    e
+                )
+            }
+        }
+        
+        throw lastException ?: YouTubeExtractionException(
+            DownloadError.UNKNOWN_ERROR, 
+            "All format selection attempts failed for URL: $url"
+        )
+    }
+
+    private suspend fun performExtraction(url: String, attempt: Int): VideoInfoDto {
+        Log.d("YouTubeExtractor", "Using YouTube-DL for video info extraction (attempt $attempt)...")
+        
+        val request = YoutubeDLRequest(url).apply {
+            addOption("--dump-json")
+            addOption("--no-playlist")
+            addOption("--no-check-certificate")
+            addOption("--prefer-free-formats")
+            addOption("--add-header", "referer:youtube.com")
+            addOption("--add-header", "user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            addOption("--no-warnings")
+            addOption("--quiet")
+            addOption("--ignore-errors")
+            
+            // Configure format selection based on attempt number
+            configureFormatSelection(this, attempt)
+        }
+        
+        val response = YoutubeDL.getInstance().execute(request)
+        
+        if (response.exitCode != 0) {
+            val errorMessage = response.err
+            Log.e("YouTubeExtractor", "YouTube-DL failed with exit code ${response.exitCode}: $errorMessage")
+            
+            // Check if this is just a Python deprecation warning but extraction still worked
+            val jsonOutput = response.out
+            if (jsonOutput.isNotBlank() && errorMessage.contains("python version", ignoreCase = true) && errorMessage.contains("deprecated", ignoreCase = true)) {
+                Log.w("YouTubeExtractor", "Python deprecation warning detected but extraction succeeded, continuing...")
+            } else {
+                handleYoutubeDLError(errorMessage, url)
+            }
+        }
+        
+        val jsonOutput = response.out
+        if (jsonOutput.isBlank()) {
+            throw YouTubeExtractionException(
+                DownloadError.UNKNOWN_ERROR,
+                "YouTube-DL returned empty output for URL: $url"
+            )
+        }
+        
+        Log.d("YouTubeExtractor", "Parsing YouTube-DL JSON response...")
+        val videoJson = JSONObject(jsonOutput)
+        
+        val videoId = videoJson.optString("id", "")
+        val title = videoJson.optString("title", "Unknown Title")
+        val duration = videoJson.optLong("duration", 0L)
+        val thumbnailUrl = videoJson.optString("thumbnail")
+        val fileSize = videoJson.optLong("filesize", 0L).takeIf { it > 0 }
+        val format = videoJson.optString("ext", "mp4")
+        
+        // Get the actual download URL
+        val downloadUrl = videoJson.optString("url", "")
+        if (downloadUrl.isBlank()) {
+            throw YouTubeExtractionException(
+                DownloadError.VIDEO_UNAVAILABLE,
+                "Could not extract download URL from video info"
+            )
+        }
+        
+        Log.d("YouTubeExtractor", "Successfully extracted video info: $title (attempt $attempt)")
+        
+        return VideoInfoDto(
+            id = videoId,
+            title = title,
+            downloadUrl = downloadUrl,
+            thumbnailUrl = thumbnailUrl.takeIf { it.isNotBlank() },
+            duration = duration,
+            fileSize = fileSize,
+            format = format
+        )
+    }
+
+    private fun isFormatRelatedError(exception: YouTubeExtractionException): Boolean {
+        val message = exception.message?.lowercase() ?: ""
+        return message.contains("requested format is not available") ||
+               message.contains("no video formats found") ||
+               message.contains("format not available") ||
+               message.contains("no suitable formats") ||
+               message.contains("no formats found") ||
+               message.contains("format selection failed") ||
+               message.contains("unsupported format") ||
+               message.contains("format unavailable") ||
+               message.contains("no compatible formats") ||
+               message.contains("format error")
+    }
+
+    private fun configureFormatSelection(request: YoutubeDLRequest, attempt: Int = 1) {
+        when (attempt) {
+            1 -> {
+                // Strategy 1: Automatic format selection
+                // No format option added - YouTube-DL will automatically select the best available format
+                Log.d("YouTubeExtractor", "Using automatic format selection (attempt $attempt)")
+            }
+            2 -> {
+                // Strategy 2: Quality-based format selection
+                request.addOption("--format", "best")
+                Log.d("YouTubeExtractor", "Using quality-based format selection: 'best' (attempt $attempt)")
+            }
+            3 -> {
+                // Strategy 3: Compatibility-based format selection
+                request.addOption("--format", "worst")
+                Log.d("YouTubeExtractor", "Using compatibility-based format selection: 'worst' (attempt $attempt)")
+            }
+            else -> {
+                // Fallback: use automatic selection for any attempt beyond 3
+                Log.w("YouTubeExtractor", "Attempt $attempt beyond expected range, using automatic format selection")
+            }
+        }
+    }
+
     private fun extractVideoIdFromUrl(url: String): String? {
         YOUTUBE_URL_PATTERNS.forEach { pattern ->
             val matchResult = pattern.find(url)
@@ -215,7 +290,15 @@ class YouTubeExtractorServiceImpl @Inject constructor(
             lowerError.contains("unsupported url") -> DownloadError.INVALID_URL
             
             lowerError.contains("requested format is not available") ||
-            lowerError.contains("no video formats found") -> DownloadError.VIDEO_UNAVAILABLE
+            lowerError.contains("no video formats found") ||
+            lowerError.contains("format not available") ||
+            lowerError.contains("no suitable formats") ||
+            lowerError.contains("no formats found") ||
+            lowerError.contains("format selection failed") ||
+            lowerError.contains("unsupported format") ||
+            lowerError.contains("format unavailable") ||
+            lowerError.contains("no compatible formats") ||
+            lowerError.contains("format error") -> DownloadError.VIDEO_UNAVAILABLE
             
             else -> DownloadError.UNKNOWN_ERROR
         }
@@ -223,6 +306,18 @@ class YouTubeExtractorServiceImpl @Inject constructor(
         val userFriendlyMessage = when {
             error == DownloadError.UNKNOWN_ERROR && lowerError.contains("python version") -> 
                 "Video extraction failed due to compatibility issues. Please try again or contact support."
+            error == DownloadError.VIDEO_UNAVAILABLE && (
+                lowerError.contains("requested format is not available") ||
+                lowerError.contains("no video formats found") ||
+                lowerError.contains("format not available") ||
+                lowerError.contains("no suitable formats") ||
+                lowerError.contains("no formats found") ||
+                lowerError.contains("format selection failed") ||
+                lowerError.contains("unsupported format") ||
+                lowerError.contains("format unavailable") ||
+                lowerError.contains("no compatible formats") ||
+                lowerError.contains("format error")
+            ) -> "The video cannot be processed because no compatible formats are available. This may be due to regional restrictions or video settings."
             else -> "yt-dlp error for URL '$url': $errorMessage"
         }
         
