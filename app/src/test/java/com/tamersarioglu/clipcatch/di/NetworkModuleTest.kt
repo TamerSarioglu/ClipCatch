@@ -2,6 +2,7 @@ package com.tamersarioglu.clipcatch.di
 
 import android.content.Context
 import android.net.ConnectivityManager
+import com.tamersarioglu.clipcatch.util.Logger
 import com.tamersarioglu.clipcatch.util.NetworkUtils
 import io.mockk.every
 import io.mockk.mockk
@@ -30,8 +31,9 @@ class NetworkModuleTest {
     fun `provideNetworkUtils returns NetworkUtils instance`() {
         val context = mockk<Context>(relaxed = true)
         val connectivityManager = mockk<ConnectivityManager>(relaxed = true)
+        val logger = mockk<Logger>(relaxed = true)
         every { context.getSystemService(Context.CONNECTIVITY_SERVICE) } returns connectivityManager
-        val networkUtils = networkModule.provideNetworkUtils(context)
+        val networkUtils = networkModule.provideNetworkUtils(context, logger)
         assertNotNull(networkUtils)
     }
     
@@ -40,8 +42,9 @@ class NetworkModuleTest {
         val loggingInterceptor = networkModule.provideHttpLoggingInterceptor()
         val context = mockk<Context>(relaxed = true)
         val connectivityManager = mockk<ConnectivityManager>(relaxed = true)
+        val logger = mockk<Logger>(relaxed = true)
         every { context.getSystemService(Context.CONNECTIVITY_SERVICE) } returns connectivityManager
-        val networkUtils = NetworkUtils(context)
+        val networkUtils = NetworkUtils(context, logger)
         val networkConnectionInterceptor = networkModule.provideNetworkConnectionInterceptor(networkUtils)
         val errorHandlingInterceptor = networkModule.provideErrorHandlingInterceptor()
         val retryInterceptor = networkModule.provideRetryInterceptor()
@@ -65,8 +68,9 @@ class NetworkModuleTest {
         val loggingInterceptor = networkModule.provideHttpLoggingInterceptor()
         val context = mockk<Context>(relaxed = true)
         val connectivityManager = mockk<ConnectivityManager>(relaxed = true)
+        val logger = mockk<Logger>(relaxed = true)
         every { context.getSystemService(Context.CONNECTIVITY_SERVICE) } returns connectivityManager
-        val networkUtils = NetworkUtils(context)
+        val networkUtils = NetworkUtils(context, logger)
         val networkConnectionInterceptor = networkModule.provideNetworkConnectionInterceptor(networkUtils)
         val errorHandlingInterceptor = networkModule.provideErrorHandlingInterceptor()
         val retryInterceptor = networkModule.provideRetryInterceptor()
@@ -80,6 +84,6 @@ class NetworkModuleTest {
         val retrofit = networkModule.provideRetrofit(client, json)
         assertNotNull(retrofit)
         assertEquals("https://www.youtube.com/", retrofit.baseUrl().toString())
-        assertTrue(retrofit.converterFactories().size >= 1)
+        assertTrue(retrofit.converterFactories().isNotEmpty())
     }
 }

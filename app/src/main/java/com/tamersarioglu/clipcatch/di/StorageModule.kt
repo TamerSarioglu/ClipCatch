@@ -5,6 +5,7 @@ import com.tamersarioglu.clipcatch.data.service.DownloadManagerService
 import com.tamersarioglu.clipcatch.data.service.DownloadManagerServiceImpl
 import com.tamersarioglu.clipcatch.data.service.FileManagerService
 import com.tamersarioglu.clipcatch.data.service.FileManagerServiceImpl
+import com.tamersarioglu.clipcatch.data.service.InitializationOrchestrator
 import com.tamersarioglu.clipcatch.data.service.YouTubeExtractorService
 import com.tamersarioglu.clipcatch.data.service.YouTubeExtractorServiceImpl
 import com.tamersarioglu.clipcatch.util.ErrorHandler
@@ -44,6 +45,7 @@ object StorageModule {
     @Provides
     @Singleton
     fun provideYouTubeExtractorService(
-        @ApplicationContext context: Context
-    ): YouTubeExtractorService = YouTubeExtractorServiceImpl(context)
+        @ApplicationContext context: Context,
+        initializationOrchestrator: InitializationOrchestrator
+    ): YouTubeExtractorService = YouTubeExtractorServiceImpl(context, initializationOrchestrator)
 }

@@ -43,7 +43,6 @@ android {
     kotlin {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
-            freeCompilerArgs.add("-XXLanguage:+PropertyParamAnnotationDefaultTargetMode")
         }
     }
     buildFeatures {
@@ -126,7 +125,7 @@ dependencies {
     implementation(libs.commons.compress)
     
     // Android Support library for native dependencies
-    implementation("androidx.legacy:legacy-support-v4:1.0.0")
+    implementation(libs.androidx.legacy.support.v4)
     
     // File operations
     implementation(libs.androidx.documentfile)

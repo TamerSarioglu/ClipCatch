@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.tamersarioglu.clipcatch.data.dto.VideoInfoDto
 import com.tamersarioglu.clipcatch.domain.model.DownloadError
+import com.tamersarioglu.clipcatch.domain.model.InitializationStatus
 import com.yausername.youtubedl_android.YoutubeDL
 import com.yausername.youtubedl_android.YoutubeDLRequest
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -22,7 +23,8 @@ interface YouTubeExtractorService {
 
 @Singleton
 class YouTubeExtractorServiceImpl @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val initializationOrchestrator: InitializationOrchestrator
 ) : YouTubeExtractorService {
     
     companion object {
@@ -48,9 +50,9 @@ class YouTubeExtractorServiceImpl @Inject constructor(
             }
             
             // Ensure YouTube-DL is initialized before proceeding
-            val app = context.applicationContext as com.tamersarioglu.clipcatch.ClipCatchApplication
-            if (!app.ensureYoutubeDLInitialized()) {
-                Log.e("YouTubeExtractor", "YouTube-DL not available - native libraries missing")
+            initializationOrchestrator.initialize()
+            if (!initializationOrchestrator.isInitializationComplete()) {
+                Log.e("YouTubeExtractor", "YouTube-DL not available - initialization incomplete")
                 throw YouTubeExtractionException(
                     DownloadError.UNKNOWN_ERROR,
                     "YouTube-DL initialization failed. Please reinstall the app or contact support."
@@ -87,10 +89,10 @@ class YouTubeExtractorServiceImpl @Inject constructor(
 
     override fun isYoutubeDLAvailable(): Boolean {
         return try {
-            // Ensure initialization is attempted
-            val app = context.applicationContext as com.tamersarioglu.clipcatch.ClipCatchApplication
-            if (!app.ensureYoutubeDLInitialized()) {
-                Log.w("YouTubeExtractor", "YouTube-DL initialization failed")
+            // Check if initialization is complete
+            val status = initializationOrchestrator.getInitializationStatus()
+            if (status !is InitializationStatus.Completed) {
+                Log.w("YouTubeExtractor", "YouTube-DL initialization not complete: $status")
                 return false
             }
             

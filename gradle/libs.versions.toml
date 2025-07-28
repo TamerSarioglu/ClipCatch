@@ -1,5 +1,6 @@
 [versions]
 agp = "8.12.0-alpha08"
+legacySupportV4 = "1.0.0"
 youtubedl = "0.17.4"
 commonsCompress = "1.27.1"
 hiltAndroidTesting = "2.57"
@@ -29,6 +30,7 @@ robolectric = "4.15.1"
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 
 # YouTube Downloader - Correct configuration
+androidx-legacy-support-v4 = { module = "androidx.legacy:legacy-support-v4", version.ref = "legacySupportV4" }
 youtubedl-library = { group = "io.github.junkfood02.youtubedl-android", name = "library", version.ref = "youtubedl" }
 youtubedl-ffmpeg = { group = "io.github.junkfood02.youtubedl-android", name = "ffmpeg", version.ref = "youtubedl" }
 youtubedl-aria2c = { group = "io.github.junkfood02.youtubedl-android", name = "aria2c", version.ref = "youtubedl" }

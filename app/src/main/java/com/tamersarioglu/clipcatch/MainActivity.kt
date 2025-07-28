@@ -13,15 +13,21 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.tamersarioglu.clipcatch.data.service.InitializationOrchestrator
+import com.tamersarioglu.clipcatch.domain.model.InitializationStatus
 import com.tamersarioglu.clipcatch.ui.screen.DownloadScreen
 import com.tamersarioglu.clipcatch.ui.theme.ClipCatchTheme
 import dagger.hilt.android.AndroidEntryPoint
 import android.util.Log
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    
+    @Inject
+    lateinit var initializationOrchestrator: InitializationOrchestrator
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -30,7 +36,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MainContent()
+                    MainContent(initializationOrchestrator)
                 }
             }
         }
@@ -38,22 +44,28 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MainContent() {
-    val context = LocalContext.current
+fun MainContent(initializationOrchestrator: InitializationOrchestrator) {
     var youtubeDLStatus by remember { mutableStateOf("Checking...") }
     
     LaunchedEffect(Unit) {
         try {
-            val app = context.applicationContext as ClipCatchApplication
-            app.ensureYoutubeDLInitialized()
+            // Ensure initialization is started
+            initializationOrchestrator.initialize()
             
             // Check status periodically until initialization is complete
             while (true) {
-                val status = app.getYoutubeDLStatus()
-                youtubeDLStatus = status
+                val status = initializationOrchestrator.getInitializationStatus()
+                val statusMessage = when (status) {
+                    is InitializationStatus.NotStarted -> "YouTube-DL Not Started"
+                    is InitializationStatus.InProgress -> "YouTube-DL Initializing..."
+                    is InitializationStatus.Completed -> "YouTube-DL Ready"
+                    is InitializationStatus.Failed -> "YouTube-DL Failed - Check logs"
+                }
+                
+                youtubeDLStatus = statusMessage
                 Log.d("MainActivity", "YouTube-DL Status: $youtubeDLStatus")
                 
-                if (status == "YouTube-DL Ready" || status == "YouTube-DL Failed - Check logs") {
+                if (status is InitializationStatus.Completed || status is InitializationStatus.Failed) {
                     break
                 }
                 

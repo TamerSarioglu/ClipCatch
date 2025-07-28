@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
+import com.tamersarioglu.clipcatch.util.Logger
 import com.tamersarioglu.clipcatch.util.NetworkUtils
 import io.mockk.every
 import io.mockk.mockk
@@ -17,6 +18,7 @@ class NetworkUtilsTest {
     private lateinit var connectivityManager: ConnectivityManager
     private lateinit var network: Network
     private lateinit var networkCapabilities: NetworkCapabilities
+    private lateinit var logger: Logger
     private lateinit var networkUtils: NetworkUtils
     
     @Before
@@ -25,10 +27,11 @@ class NetworkUtilsTest {
         connectivityManager = mockk()
         network = mockk()
         networkCapabilities = mockk()
+        logger = mockk(relaxed = true)
         
         every { context.getSystemService(Context.CONNECTIVITY_SERVICE) } returns connectivityManager
         
-        networkUtils = NetworkUtils(context)
+        networkUtils = NetworkUtils(context, logger)
     }
     
     @Test
